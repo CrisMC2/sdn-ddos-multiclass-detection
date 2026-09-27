@@ -1,0 +1,36 @@
+# Datos generados (pcaps y CSVs) - se regeneran con los scripts de
+# wsl/ o docker/, no tiene sentido versionarlos (son grandes y
+# cambian en cada corrida).
+data/raw/**/*.pcap
+data/processed/*.csv
+
+# Venv de Ryu: symlink que solo tiene sentido en la maquina/WSL donde
+# se genero (apunta a ~/ataque-ryu-venv). Se recrea con
+# scripts/wsl/02_setup_ryu_venv.sh o viene horneado en la imagen Docker.
+scripts/ryu/venv
+
+# Python
+__pycache__/
+*.pyc
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+
+# Carpeta interna de Claude Code, no es parte del proyecto
+.claude/
+
+# Editores/IDEs
+.vscode/
+.idea/
+
+# Archivos auxiliares de la compilacion de LaTeX (se regeneran al
+# compilar main.tex). main.pdf SI se versiona, como referencia.
+paper/*.aux
+paper/*.log
+paper/*.bbl
+paper/*.blg
+paper/*.out
+paper/*.synctex.gz
+paper/*.spl
+paper/*.abs

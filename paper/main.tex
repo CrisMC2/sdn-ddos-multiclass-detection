@@ -1,0 +1,170 @@
+% Software Impacts usa la clase cas-dc (doble columna) del paquete
+% oficial de Elsevier "els-cas-templates" -- NO elsarticle. La
+% estructura de contenido (Code metadata con exactamente los campos
+% C1-C9, cuerpo libre de hasta 3 paginas, Acknowledgements opcional,
+% References) sigue al pie de la letra la plantilla oficial:
+% https://legacyfileshare.elsevier.com/promis_misc/SIMPAC_Article_Template.pdf
+
+\documentclass[a4paper,fleqn]{cas-dc}
+
+\usepackage[numbers]{natbib}
+\usepackage{booktabs}
+
+\begin{document}
+
+\let\WriteBookmarks\relax
+\def\floatpagepagefraction{1}
+\def\textpagefraction{.001}
+
+\shorttitle{Deteccion multi-clase de DDoS en SDN}
+\shortauthors{Apellido et al.}
+
+\title[mode=title]{NOMBRE-DEL-PROYECTO: Deteccion de ataques DDoS
+multi-clase en redes definidas por software mediante aprendizaje
+automatico}
+
+\author[1]{Nombre Apellido}
+\cormark[1]
+\ead{email@institucion.edu}
+\affiliation[1]{organization={Institucion},
+            addressline={},
+            city={Ciudad},
+            postcode={},
+            state={},
+            country={Pais}}
+
+\cortext[1]{Autor de correspondencia}
+
+\begin{abstract}
+% Software Impacts pide ~100 palabras. TODO: completar una vez esten
+% los resultados de la Fase 5.
+TODO: resumen de ~100 palabras. Debe cubrir: que hace el software
+(entorno reproducible Mininet+Ryu+ML para generar y clasificar
+trafico DDoS multi-clase), como se diferencia del trabajo de
+referencia (deteccion de 4 tipos de ataque en vez de solo ICMP flood,
+entorno reproducible via Docker), y el resultado principal obtenido.
+\end{abstract}
+
+\begin{keywords}
+Software defined networking \sep
+Machine learning \sep
+DDoS attack detection \sep
+Mininet \sep
+Network traffic classification
+\end{keywords}
+
+\maketitle
+
+%% ------------------------------------------------------------------
+%% Tabla de metadata del codigo: EXACTAMENTE los campos C1-C9 que pide
+%% la plantilla oficial de Software Impacts (no inventar columnas
+%% propias).
+%% ------------------------------------------------------------------
+\begin{table*}[t]
+\small
+\caption{Code metadata.}\label{tbl:metadata}
+\begin{tabular*}{\textwidth}{@{}p{1cm}p{6.5cm}L@{}}
+\toprule
+Nr. & Code metadata description & Please fill in this column \\
+\midrule
+C1 & Current code version & v1.0 \\
+C2 & Permanent link to code/repository used for this code version & TODO: URL del repo \\
+C3 & Permanent link to Reproducible Capsule & -- \\
+C4 & Legal Code License & TODO: elegir licencia (p.ej. MIT) \\
+C5 & Code versioning system used & git \\
+C6 & Software code languages, tools, and services used & Python, Bash, Mininet, Open vSwitch, Ryu, CICFlowMeter, Docker \\
+C7 & Compilation requirements, operating environments \& dependencies & WSL2/Ubuntu 24.04 o Docker; Python 3.9 (Ryu) y Python 3.12 (CICFlowMeter); ver \texttt{README.md} \\
+C8 & Link to developer documentation/manual & Ver \texttt{README.md} del repositorio \\
+C9 & Support email for questions & TODO: email de contacto \\
+\bottomrule
+\end{tabular*}
+\end{table*}
+
+%% ------------------------------------------------------------------
+%% Cuerpo del articulo (hasta 3 paginas, excluyendo metadata, tablas,
+%% figuras y referencias). La plantilla no exige subtitulos fijos,
+%% pero pide cubrir estos puntos: funcionalidad de alto nivel para
+%% audiencia no especialista, "impact overview", proyectos en curso,
+%% limitaciones/trabajo futuro, y publicaciones habilitadas por el
+%% software.
+%% ------------------------------------------------------------------
+
+\section{Introduction}\label{sec:intro}
+% Funcionalidad de alto nivel para audiencia no especialista: que
+% problema resuelve el software (SDN vulnerables a DDoS por el
+% controlador centralizado) y que aporta este trabajo frente al de
+% referencia \cite{kumar2026icmpfloodsdn} (deteccion multi-clase con 4
+% tipos de ataque en vez de binaria ICMP-only; entorno completamente
+% reproducible via Docker; trafico normal sintetico controlado en vez
+% de navegacion real a internet, para eliminar variables no
+% reproducibles).
+TODO: redactar. Ver \texttt{README.md} del repositorio para el detalle
+completo de las decisiones metodologicas y los problemas tecnicos
+resueltos durante el desarrollo.
+
+\section{Software description}\label{sec:description}
+
+\subsection{Architecture overview}
+Topologia Mininet de 5 hosts (servidor propio, 2 clientes, 2
+atacantes) sobre un switch Open vSwitch (datapath userspace)
+controlado por Ryu; generacion de 4 tipos de ataque (SYN flood, HTTP
+flood, Slowloris, ICMP flood) capturados por separado; conversion a
+CSV con CICFlowMeter (y un agrupador de flujos propio para ICMP, que
+CICFlowMeter no soporta); todo empaquetado en una imagen Docker para
+reproducibilidad completa. TODO: ampliar.
+
+\subsection{Software functionalities}
+TODO: enumerar los scripts principales (\texttt{scripts/mininet},
+\texttt{scripts/wsl}, \texttt{scripts/docker}) y que hace cada uno.
+
+\section{Impact overview}\label{sec:impact}
+% Seccion explicitamente pedida por la plantilla de Software Impacts.
+% Cubrir: que nuevas preguntas de investigacion habilita, en que
+% forma/medida mejora la investigacion existente, si cambio la
+% practica diaria de sus usuarios, que tan difundido esta su uso, y si
+% se usa en entornos comerciales.
+TODO: completar. Punto de partida: a diferencia de
+\cite{kumar2026icmpfloodsdn}, que depende de una conexion a internet
+real y por lo tanto no es reproducible entre corridas, este trabajo
+habilita comparaciones reproducibles de metodos de deteccion
+multi-clase de DDoS en SDN.
+
+\subsection{Ongoing research projects using the software}
+TODO (si aplica).
+
+\subsection{Limitations and future improvements}
+El trafico normal se genera de forma sintetica y controlada (en vez
+de navegacion real a internet, como en \cite{kumar2026icmpfloodsdn}),
+lo que reduce la diversidad/realismo del trafico a cambio de
+reproducibilidad total. Trabajo futuro: deteccion en tiempo real
+mediante una aplicacion Ryu propia que clasifique estadisticas
+OpenFlow en vivo.
+
+\subsection{List of scholarly publications enabled by this software}
+TODO (si aplica, una vez publicado).
+
+\section{Software and hardware requirements}\label{sec:requirements}
+
+\begin{table*}[t]
+\small
+\caption{Testbed setup requirements.}\label{tbl:testbed}
+\begin{tabular*}{\textwidth}{@{}p{1cm}LLp{2cm}@{}}
+\toprule
+N.\textsuperscript{o} & Descripcion & Herramienta & Version \\
+\midrule
+1 & Emulador de red & Mininet & TODO \\
+2 & Controlador SDN & Ryu & 4.34 \\
+3 & SYN / ICMP flood & hping3 & TODO \\
+4 & Ataque de baja tasa & slowhttptest & TODO \\
+5 & pcap a CSV & CICFlowMeter & 0.5.0 \\
+\bottomrule
+\end{tabular*}
+\end{table*}
+
+\section*{Acknowledgements}
+TODO (opcional).
+
+\bibliographystyle{cas-model2-names}
+\bibliography{references}
+
+\end{document}
