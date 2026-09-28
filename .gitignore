@@ -2,7 +2,9 @@
 # wsl/ o docker/, no tiene sentido versionarlos (son grandes y
 # cambian en cada corrida).
 data/raw/**/*.pcap
+data/raw/**/*.meta.json
 data/processed/*.csv
+data/metrics/*.csv
 
 # Venv de Ryu: symlink que solo tiene sentido en la maquina/WSL donde
 # se genero (apunta a ~/ataque-ryu-venv). Se recrea con

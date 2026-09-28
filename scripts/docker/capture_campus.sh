@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Levanta Ryu y corre un escenario del campus, o solo la prueba de caminos.
+# Uso: capture_campus.sh <verify|baseline|synflood|httpflood|slowloris|icmpflood> [segundos]
+set -euo pipefail
+cd "$(dirname "$0")"
+
+SCENARIO="${1:?Uso: capture_campus.sh <verify|baseline|synflood|httpflood|slowloris|icmpflood> [segundos]}"
+DURATION="${2:-120}"
+export DATA_DIR="${DATA_DIR:-/ataque/data}"
+export PYTHONDONTWRITEBYTECODE=1
+
+RYU=/opt/ryu-venv/bin/ryu-manager
+mn -c > /dev/null 2>&1 || true
+
+echo "*** Arrancando Ryu (simple_switch_13)"
+"$RYU" ryu.app.simple_switch_13 --ofp-tcp-listen-port 6653 > /tmp/ryu.log 2>&1 &
+RYU_PID=$!
+sleep 4
+
+cleanup() { kill "$RYU_PID" > /dev/null 2>&1 || true; }
+trap cleanup EXIT
+
+if [ "$SCENARIO" = "verify" ]; then
+  python3 ../mininet/topo.py test
+else
+  python3 ../mininet/capture_campus.py "$SCENARIO" "$DURATION"
+fi

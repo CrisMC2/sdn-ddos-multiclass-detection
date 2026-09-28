@@ -18,4 +18,7 @@ if [ ! -S /var/run/openvswitch/db.sock ]; then
     ovs-vswitchd --pidfile --detach --log-file
 fi
 
+export DATA_DIR="${DATA_DIR:-/ataque/data}"
+export PYTHONDONTWRITEBYTECODE=1
+
 exec "$@"

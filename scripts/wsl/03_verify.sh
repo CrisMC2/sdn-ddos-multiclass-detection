@@ -28,9 +28,9 @@ sudo python3 ../mininet/topo.py test
 STATUS=$?
 
 if [ "$STATUS" -eq 0 ]; then
-    echo "OK: pingall sin perdidas. Entorno verificado."
+    echo "OK: el alumno, el infectado y el C2 llegan a donde tienen que llegar."
 else
-    echo "FALLO: hubo perdidas en pingall. Revisa /tmp/ryu.log" >&2
+    echo "FALLO: algun camino no responde. Revisa /tmp/ryu.log" >&2
 fi
 
 exit "$STATUS"

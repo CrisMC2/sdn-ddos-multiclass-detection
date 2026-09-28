@@ -1,14 +1,11 @@
 #!/usr/bin/env bash
-# Levanta Ryu + la topologia, lanza un ataque desde attacker1 y lo
-# captura en data/raw/attacks/<tipo>.pcap (separado del trafico normal).
-#
-# Uso: 05_capture_attack.sh <synflood|httpflood|slowloris|icmpflood> [duracion_s] [salida.pcap]
+# Ataque del campus: los alumnos siguen en el portal y las PCs infectadas
+# lo atacan. Uso: 05_capture_attack.sh <synflood|httpflood|slowloris|icmpflood> [duracion_s]
 set -euo pipefail
 cd "$(dirname "$0")"
 
-ATTACK="${1:?Uso: 05_capture_attack.sh <synflood|httpflood|slowloris|icmpflood> [duracion_s] [salida.pcap]}"
+ATTACK="${1:?Uso: 05_capture_attack.sh <synflood|httpflood|slowloris|icmpflood> [duracion_s]}"
 DURATION="${2:-120}"
-OUT="${3:-}"
 
 RYU="$HOME/ataque-ryu-venv/bin/ryu-manager"
 if [ ! -x "$RYU" ]; then
@@ -26,9 +23,5 @@ sleep 3
 cleanup() { sudo kill "$RYU_PID" > /dev/null 2>&1 || true; }
 trap cleanup EXIT
 
-echo "*** Lanzando ataque '$ATTACK' (${DURATION}s)"
-if [ -n "$OUT" ]; then
-    sudo python3 ../mininet/capture_attack.py "$ATTACK" "$DURATION" "$OUT"
-else
-    sudo python3 ../mininet/capture_attack.py "$ATTACK" "$DURATION"
-fi
+echo "*** Lanzando ataque '$ATTACK' en el campus (${DURATION}s)"
+sudo python3 ../mininet/capture_campus.py "$ATTACK" "$DURATION"

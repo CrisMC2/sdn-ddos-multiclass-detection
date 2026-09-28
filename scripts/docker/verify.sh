@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Smoke test: levanta Ryu + la topologia y corre pingall.
+# Prueba de caminos: alumno -> portal, infectado -> portal, C2 -> infectado.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -18,9 +18,10 @@ python3 ../mininet/topo.py test
 STATUS=$?
 
 if [ "$STATUS" -eq 0 ]; then
-    echo "OK: pingall sin perdidas. Entorno verificado."
+    echo "OK: el alumno, el infectado y el C2 llegan a donde tienen que llegar."
 else
-    echo "FALLO: hubo perdidas en pingall. Revisa /tmp/ryu.log" >&2
+    echo "FALLO: algun camino no responde. Revisa /tmp/ryu.log" >&2
+    cat /tmp/ryu.log >&2 || true
 fi
 
 exit "$STATUS"

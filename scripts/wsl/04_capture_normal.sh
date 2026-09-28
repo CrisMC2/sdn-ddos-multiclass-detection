@@ -1,13 +1,10 @@
 #!/usr/bin/env bash
-# Levanta Ryu + la topologia, genera trafico HTTP normal desde los
-# clientes y lo captura en data/raw/normal/normal.pcap
-#
-# Uso: 04_capture_normal.sh [duracion_s] [salida.pcap]
+# Baseline del campus: alumnos (y las PCs aun no usadas para atacar)
+# navegan el portal. Uso: 04_capture_normal.sh [duracion_s]
 set -euo pipefail
 cd "$(dirname "$0")"
 
-DURATION="${1:-300}"
-OUT="${2:-../../data/raw/normal/normal.pcap}"
+DURATION="${1:-120}"
 
 RYU="$HOME/ataque-ryu-venv/bin/ryu-manager"
 if [ ! -x "$RYU" ]; then
@@ -25,5 +22,5 @@ sleep 3
 cleanup() { sudo kill "$RYU_PID" > /dev/null 2>&1 || true; }
 trap cleanup EXIT
 
-echo "*** Generando y capturando trafico normal (${DURATION}s) -> ${OUT}"
-sudo python3 ../mininet/capture_normal.py "$DURATION" "$OUT"
+echo "*** Baseline del campus (${DURATION}s)"
+sudo python3 ../mininet/capture_campus.py baseline "$DURATION"

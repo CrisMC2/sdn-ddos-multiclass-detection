@@ -1,31 +1,73 @@
 #!/usr/bin/env python3
-"""Topologia base: 1 servidor web, 2 clientes normales, 2 atacantes,
-todos colgados de un switch OVS (datapath userspace) apuntando a un
-controlador Ryu remoto en 127.0.0.1:6653.
+"""Campus reducido: modem, core SDN, DMZ con el portal, y un laboratorio
+por area academica de la UNCP.
 
-Uso:
-    sudo python3 topo.py           # abre la CLI de Mininet
-    sudo python3 topo.py test      # corre pingall no interactivo y sale
+El atacante (C2) esta del lado internet del modem. Los alumnos y las
+PCs infectadas estan en los laboratorios. El trafico hacia el portal
+cruza el switch de la facultad y el core; no hace falta salir a internet.
+
+Uso (con Ryu ya escuchando en 127.0.0.1:6653):
+    python3 topo.py        # CLI de Mininet
+    python3 topo.py test   # alumno->portal, infectado->portal, C2->infectado
 """
+import os
 import sys
+import time
 
 from mininet.net import Mininet
-from mininet.node import RemoteController, OVSSwitch
+from mininet.node import OVSSwitch, RemoteController
 from mininet.cli import CLI
 from mininet.log import setLogLevel, info
 from mininet.link import TCLink
 
+from roles import (
+    AREAS,
+    C2_GW,
+    C2_IP,
+    C2_NAME,
+    CORE_SWITCH,
+    DMZ_SWITCH,
+    MODEM_CAMPUS_IP,
+    VICTIM_IP,
+    VICTIM_NAME,
+    area_of,
+    area_switch,
+    bots,
+    students,
+)
+
 
 class UserspaceOVSSwitch(OVSSwitch):
-    """OVSSwitch forzado a datapath_type=netdev (userspace).
+    """OVS en userspace. Dentro de Docker/WSL no hay modulo de kernel."""
 
-    Evita depender del modulo de kernel de OVS, que es la fuente mas
-    comun de problemas dentro de WSL2.
-    """
+    def __init__(self, *args, **kwargs):
+        kwargs['datapath'] = 'user'
+        kwargs.setdefault('protocols', 'OpenFlow13')
+        super(UserspaceOVSSwitch, self).__init__(*args, **kwargs)
 
     def start(self, controllers):
-        super().start(controllers)
+        super(UserspaceOVSSwitch, self).start(controllers)
         self.cmd('ovs-vsctl set bridge %s datapath_type=netdev' % self.name)
+
+
+def _offload_off(host):
+    # ethtool suele estar en /usr/sbin, fuera del PATH de un host de Mininet.
+    # Sin esto el ping responde y el TCP (el portal) se queda colgado.
+    host.cmd(
+        'ETH=$(command -v ethtool || echo /usr/sbin/ethtool); '
+        'for i in /sys/class/net/*; do '
+        '"$ETH" -K "$(basename "$i")" tx off rx off tso off gso off gro off; '
+        'done >/tmp/ethtool.log 2>&1 || true'
+    )
+
+
+def _campus_net(host, ip):
+    """Una sola red 10.0.0.0/8. 10.1.0.10/16 NO incluye al portal 10.0.0.10."""
+    iface = host.defaultIntf().name
+    host.cmd('ip addr flush dev %s' % iface)
+    host.cmd('ip addr add %s/8 dev %s' % (ip, iface))
+    host.cmd('ip link set %s up' % iface)
+    host.cmd('ip route replace default via %s' % MODEM_CAMPUS_IP)
 
 
 def build():
@@ -36,57 +78,138 @@ def build():
         autoSetMacs=True,
     )
 
-    info('*** Agregando controlador Ryu remoto\n')
+    info('*** Controlador Ryu en 127.0.0.1:6653\n')
     c0 = net.addController('c0', controller=RemoteController, ip='127.0.0.1', port=6653)
 
-    info('*** Agregando switch\n')
-    s1 = net.addSwitch('s1')
+    info('*** Switches: core, DMZ y un laboratorio por area\n')
+    core = net.addSwitch(CORE_SWITCH)
+    dmz = net.addSwitch(DMZ_SWITCH)
+    area_sw = {}
+    for key, _prefix, title in AREAS:
+        info('    laboratorio %s (%s) en %s\n' % (key, title, area_switch(key)))
+        area_sw[key] = net.addSwitch(area_switch(key))
 
-    info('*** Agregando hosts\n')
-    server = net.addHost('server', ip='10.0.0.1/24')
-    client1 = net.addHost('client1', ip='10.0.0.2/24')
-    client2 = net.addHost('client2', ip='10.0.0.3/24')
-    attacker1 = net.addHost('attacker1', ip='10.0.0.4/24')
-    attacker2 = net.addHost('attacker2', ip='10.0.0.5/24')
+    modem = net.addHost('modem', ip='%s/8' % MODEM_CAMPUS_IP)
+    c2 = net.addHost(C2_NAME, ip='%s/24' % C2_IP, defaultRoute='via %s' % C2_GW)
+    www = net.addHost(
+        VICTIM_NAME, ip='%s/8' % VICTIM_IP, defaultRoute='via %s' % MODEM_CAMPUS_IP
+    )
 
-    for h in (server, client1, client2, attacker1, attacker2):
-        net.addLink(h, s1)
+    # eth0 del modem mira al campus; eth1 (el segundo enlace) mira a internet.
+    net.addLink(modem, core)
+    net.addLink(c2, modem)
+    net.addLink(core, dmz)
+    net.addLink(dmz, www)
+
+    hosts = [modem, c2, www]
+    campus_ips = {VICTIM_NAME: VICTIM_IP}
+    for name, ip in list(students()) + list(bots()):
+        host = net.addHost(
+            name, ip='%s/8' % ip, defaultRoute='via %s' % MODEM_CAMPUS_IP
+        )
+        net.addLink(area_sw[area_of(name)], host)
+        hosts.append(host)
+        campus_ips[name] = ip
+
+    for key in area_sw:
+        net.addLink(core, area_sw[key])
 
     net.build()
     c0.start()
-    s1.start([c0])
+    for sw in [core, dmz] + [area_sw[k] for k, _p, _t in AREAS]:
+        sw.start([c0])
 
-    info('*** Desactivando checksum offload en las interfaces (bug conocido\n'
-         '    de Mininet/OVS: TCP se cuelga porque el kernel descarta\n'
-         '    segmentos con checksum invalido calculado por hardware que\n'
-         '    no existe; ICMP no se ve afectado porque no valida checksum\n'
-         '    del mismo modo)\n')
-    for h in (server, client1, client2, attacker1, attacker2):
-        h.cmd('ethtool -K %s tx off rx off tso off gso off gro off 2>/dev/null' % h.defaultIntf().name)
+    info('*** Modem: reenvio entre internet (%s) y el campus (%s)\n' % (C2_GW, MODEM_CAMPUS_IP))
+    modem.cmd('ip addr add %s/24 dev modem-eth1' % C2_GW)
+    modem.cmd('ip link set modem-eth1 up')
+    for name, ip in campus_ips.items():
+        _campus_net(net.get(name), ip)
+    # Reenvio por interfaz: con solo ip_forward el paquete que entra por
+    # internet a veces sigue viendo la red del campus como inalcanzable.
+    for knob in (
+        '/proc/sys/net/ipv4/ip_forward',
+        '/proc/sys/net/ipv4/conf/all/forwarding',
+        '/proc/sys/net/ipv4/conf/default/forwarding',
+        '/proc/sys/net/ipv4/conf/modem-eth0/forwarding',
+        '/proc/sys/net/ipv4/conf/modem-eth1/forwarding',
+    ):
+        modem.cmd('echo 1 > %s 2>/dev/null || true' % knob)
+    for iface in ('all', 'default', 'modem-eth0', 'modem-eth1'):
+        modem.cmd('echo 0 > /proc/sys/net/ipv4/conf/%s/rp_filter 2>/dev/null || true' % iface)
+        modem.cmd('echo 1 > /proc/sys/net/ipv4/conf/%s/proxy_arp 2>/dev/null || true' % iface)
 
-    info('*** Levantando servidor web en "server"\n')
-    # No se usa "service apache2 start" / systemd: eso le pide al systemd
-    # del sistema (que vive en el namespace de red raiz) que arranque el
-    # proceso, y el apache resultante queda escuchando fuera del
-    # namespace de "server" -> nunca responde a los clientes. Lanzando
-    # el proceso directo desde este cmd() queda corriendo DENTRO del
-    # namespace de red de "server", que es lo que hace falta.
-    server.cmd('python3 -m http.server 80 --directory /var/www/html > /tmp/server_http.log 2>&1 &')
+    for host in hosts:
+        _offload_off(host)
 
+    web = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'webserver.py')
+    info('*** Portal en %s (%s:80)\n' % (VICTIM_NAME, VICTIM_IP))
+    www.cmd('echo starting > /tmp/www.log; python3 %s 80 >> /tmp/www.log 2>&1 &' % web)
     return net
+
+
+def _ping_ok(host, dst):
+    out = host.cmd('ping -c 3 -W 2 %s' % dst)
+    bad = (
+        ('0 received' in out)
+        or ('100% packet loss' in out)
+        or ('unreachable' in out.lower())
+        or (not out.strip())
+    )
+    return (not bad), out
+
+
+def test_campus(net):
+    time.sleep(2)
+    www_ip = net.get(VICTIM_NAME).IP()
+    bot_name, bot_ip = next(bots())
+    checks = (
+        ('alumno -> portal', net.get('salud-u1'), www_ip),
+        ('infectado -> portal', net.get(bot_name), www_ip),
+        ('C2 -> infectado', net.get(C2_NAME), bot_ip),
+    )
+    failed = 0
+    for label, src, dst in checks:
+        ok, out = _ping_ok(src, dst)
+        if ok:
+            info('OK %s\n' % label)
+        else:
+            failed += 1
+            info('FALLO %s\n%s\n' % (label, out))
+
+    code = net.get('salud-u1').cmd(
+        'curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://' + www_ip + '/'
+    ).strip()
+    if code == '200':
+        info('OK alumno abre el portal (HTTP %s)\n' % code)
+    else:
+        failed += 1
+        info('FALLO alumno abre el portal (HTTP %r)\n' % code)
+        if os.path.isfile('/tmp/www.log'):
+            info(open('/tmp/www.log').read())
+
+    if failed:
+        info('--- alumno ---\n')
+        info(net.get('salud-u1').cmd('ip -4 addr; ip -4 route'))
+        info('--- modem ---\n')
+        info(net.get('modem').cmd(
+            'echo forward=$(cat /proc/sys/net/ipv4/ip_forward); '
+            'ip -4 route; ip route get 10.1.0.20 from %s iif modem-eth1' % C2_IP
+        ))
+        if os.path.isfile('/tmp/www.log'):
+            info(open('/tmp/www.log').read())
+    return failed
 
 
 def main():
     setLogLevel('info')
     net = build()
-
-    if len(sys.argv) > 1 and sys.argv[1] == 'test':
-        result = net.pingAll()
+    try:
+        if len(sys.argv) > 1 and sys.argv[1] == 'test':
+            failed = test_campus(net)
+            sys.exit(1 if failed else 0)
+        CLI(net)
+    finally:
         net.stop()
-        sys.exit(1 if result > 0 else 0)  # pingAll devuelve % de paquetes perdidos
-
-    CLI(net)
-    net.stop()
 
 
 if __name__ == '__main__':
