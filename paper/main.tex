@@ -9,6 +9,7 @@
 
 \usepackage[numbers]{natbib}
 \usepackage{booktabs}
+\usepackage{enumitem}
 
 \begin{document}
 
@@ -16,24 +17,34 @@
 \def\floatpagepagefraction{1}
 \def\textpagefraction{.001}
 
-\shorttitle{Deteccion multi-clase de DDoS en SDN}
-\shortauthors{Apellido et al.}
+\shorttitle{Campus-DDoS-SDN}
+\shortauthors{Calder\'on Leiva et al.}
 
-\title[mode=title]{NOMBRE-DEL-PROYECTO: Deteccion de ataques DDoS
-multi-clase en redes definidas por software mediante aprendizaje
-automatico}
+% Titulo propuesto, siguiendo la misma convencion de nombres que usan
+% Kumar y Gupta en sus dos datasets de referencia ("SDN TCP-SYN
+% Dataset", "ICMP-Flood-SDN"): <nombre-corto>: descripcion. Cambiar el
+% nombre corto si el equipo prefiere otro.
+\title[mode=title]{Campus-DDoS-SDN: A Python-based testbed for
+multi-vector DDoS attack detection in software-defined campus networks}
 
-\author[1]{Nombre Apellido}
+\author[1]{Ana Olenka Calder\'on Leiva}
+
+\author[1]{Ricardo Llanos Lozano}
+
+\author[1]{Cristhian Emilio Mart\'inez Casas}
 \cormark[1]
-\ead{email@institucion.edu}
-\affiliation[1]{organization={Institucion},
+\ead{cristhianmartinezcasas@gmail.com}
+
+\author[1]{Alessandro Piero Poves Mart\'inez}
+
+\cortext[1]{Corresponding author}
+
+\affiliation[1]{organization={Universidad Nacional del Centro del Per\'u},
             addressline={},
-            city={Ciudad},
+            city={Huancayo},
             postcode={},
             state={},
-            country={Pais}}
-
-\cortext[1]{Autor de correspondencia}
+            country={Peru}}
 
 \begin{abstract}
 % Software Impacts pide ~100 palabras. TODO: completar una vez esten
@@ -90,17 +101,76 @@ C9 & Support email for questions & TODO: email de contacto \\
 %% ------------------------------------------------------------------
 
 \section{Introduction}\label{sec:intro}
-% Funcionalidad de alto nivel para audiencia no especialista: que
-% problema resuelve el software (SDN vulnerables a DDoS por el
-% controlador centralizado) y que aporta este trabajo frente al de
-% referencia \cite{kumar2026icmpfloodsdn} (deteccion multi-clase con 4
-% tipos de ataque en vez de binaria ICMP-only; entorno completamente
-% reproducible via Docker; trafico normal sintetico controlado en vez
-% de navegacion real a internet, para eliminar variables no
-% reproducibles).
-TODO: redactar. Ver \texttt{README.md} del repositorio para el detalle
-completo de las decisiones metodologicas y los problemas tecnicos
-resueltos durante el desarrollo.
+
+Software-defined networking (SDN) decouples the control plane from
+the data plane, concentrating network intelligence in a logically
+centralized controller \citep{kreutz2015sdn}. This centralization
+simplifies network management, but it also turns the controller into
+a single point of failure: a distributed denial-of-service (DDoS)
+attack that saturates the controller, the switches, or a hosted
+service can degrade or take down the entire network segment it
+governs. Detecting such attacks early, and separating them reliably
+from legitimate traffic spikes, requires datasets that are both
+representative of real SDN deployments and precisely labelled.
+
+Most publicly available intrusion-detection datasets, such as
+NSL-KDD \citep{tavallaee2009nslkdd}, CICIDS2017
+\citep{sharafaldin2018cicflowmeter}, and CICDDoS2019
+\citep{sharafaldin2019cicddos2019}, were not captured inside an SDN
+environment: they lack OpenFlow-specific signals, such as flow-table
+occupancy or controller load, and are nonetheless often reused out of
+context to train SDN-targeted classifiers. Recent work has started to
+close this gap by generating DDoS datasets directly inside Mininet/Ryu
+testbeds. Kumar and Gupta released two single-vector datasets built
+this way: a TCP-SYN flood dataset \citep{kumar2025synflood} and, more
+recently, an ICMP-flood dataset \citep{kumar2026icmpfloodsdn} in which
+normal traffic is captured by connecting a Mininet host to a live
+internet connection and browsing real websites (YouTube, Facebook,
+news, etc.), instead of relying on synthetic traffic generators. This
+real-traffic approach increases realism, but it introduces two
+practical limitations for a reusable benchmark: the resulting dataset
+is tied to a single attack vector, and it is not reproducible across
+runs, since the captured content and timing depend on whatever the
+live internet happens to serve at capture time.
+
+This work, Campus-DDoS-SDN, addresses both limitations within a
+single, fully reproducible testbed. Four attack vectors (TCP-SYN
+flood, HTTP flood, Slowloris, and ICMP flood) are launched from
+already-compromised hosts against one shared victim, a web portal,
+inside a Mininet/Ryu topology that mimics a university campus: a
+core/DMZ switch layout plus one emulated laboratory per academic
+area. Unlike prior single-vector or fully-separated-capture datasets,
+legitimate users keep browsing the portal throughout every attack, so
+each capture mixes benign and malicious flows against the same
+target, as a real DDoS incident would. Ground-truth labels are
+assigned per source IP rather than per capture file, and every run
+additionally logs the attack's effect on the victim as perceived by a
+real client (HTTP response code, latency, active connections),
+alongside network-level indicators (packets and bytes per second,
+OpenFlow flow-table size). The complete environment, including the
+traffic generators, the custom web portal, and the labelling
+pipeline, is packaged as a Docker image to remove any dependency on a
+live internet connection or on a specific host operating system.
+
+The main contributions of this work are:
+\begin{enumerate}[label=\roman*.]
+  \item A multi-class DDoS dataset covering four attack vectors
+        against a single victim inside a realistic, multi-segment SDN
+        topology, instead of a single attack type against a flat
+        network.
+  \item Per-flow, per-source-IP labelling that keeps legitimate and
+        malicious traffic mixed within the same capture, closer to a
+        real attack scenario than the fully-separated captures used
+        in prior work.
+  \item Combined network-level (flow and packet statistics via
+        CICFlowMeter) and application-level (HTTP status, latency,
+        connection saturation) impact metrics, captured automatically
+        on every run.
+  \item A one-command, fully reproducible Docker environment that
+        does not depend on a live internet connection, addressing the
+        reproducibility limitation of real-traffic-based SDN
+        datasets.
+\end{enumerate}
 
 \section{Software description}\label{sec:description}
 
