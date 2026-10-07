@@ -1,0 +1,225 @@
+% Version en espanol del articulo, para revision interna / asesor de
+% tesis en la UNCP. La version que se somete de verdad a Software
+% Impacts tiene que estar en ingles (ver main.tex) -- esta revista no
+% acepta articulos en espanol. Misma clase cas-dc, misma bibliografia.
+
+\documentclass[a4paper,fleqn]{cas-dc}
+
+\usepackage[numbers]{natbib}
+\usepackage{booktabs}
+\usepackage{enumitem}
+
+\begin{document}
+
+\let\WriteBookmarks\relax
+\def\floatpagepagefraction{1}
+\def\textpagefraction{.001}
+
+\shorttitle{Campus-DDoS-SDN}
+\shortauthors{Calder\'on Leiva et al.}
+
+\title[mode=title]{Campus-DDoS-SDN: un banco de pruebas basado en
+Python para la detecci\'on de ataques DDoS multivector en redes de
+campus definidas por software}
+
+\author[1]{Anna Olenka Calder\'on Leiva}
+
+\author[1]{Ricardo Alexander Llanos Lozano}
+
+\author[1]{Cristhian Emilio Mart\'inez Casas}
+\cormark[1]
+\ead{cristhianmartinezcasas@gmail.com}
+
+\author[1]{Alessandro Piero Poves Mart\'inez}
+
+\affiliation[1]{organization={Universidad Nacional del Centro del Per\'u},
+            addressline={},
+            city={Huancayo},
+            postcode={},
+            state={},
+            country={Peru}}
+
+\begin{abstract}
+TODO: resumen de ~100 palabras. Debe cubrir: que hace el software
+(entorno reproducible Mininet+Ryu+ML para generar y clasificar
+trafico DDoS multi-clase), como se diferencia del trabajo de
+referencia (deteccion de 4 tipos de ataque en vez de solo ICMP flood,
+entorno reproducible via Docker), y el resultado principal obtenido.
+\end{abstract}
+
+\begin{keywords}
+Redes definidas por software \sep
+Aprendizaje autom\'atico \sep
+Detecci\'on de ataques DDoS \sep
+Mininet \sep
+Clasificaci\'on de tr\'afico de red
+\end{keywords}
+
+\maketitle
+
+\begin{table*}[t]
+\small
+\caption{Metadata del c\'odigo.}\label{tbl:metadata}
+\begin{tabular*}{\textwidth}{@{}p{1cm}p{6.5cm}L@{}}
+\toprule
+Nr. & Descripci\'on & Completar en esta columna \\
+\midrule
+C1 & Versi\'on actual del c\'odigo & v1.0 \\
+C2 & Enlace permanente al repositorio de esta versi\'on & TODO: URL del repo \\
+C3 & Enlace permanente a la Reproducible Capsule & -- \\
+C4 & Licencia legal del c\'odigo & TODO: elegir licencia (p.ej. MIT) \\
+C5 & Sistema de control de versiones usado & git \\
+C6 & Lenguajes, herramientas y servicios usados & Python, Bash, Mininet, Open vSwitch, Ryu, CICFlowMeter, Docker \\
+C7 & Requisitos de compilaci\'on, entornos y dependencias & WSL2/Ubuntu 24.04 o Docker; Python 3.9 (Ryu) y Python 3.12 (CICFlowMeter); ver \texttt{README.md} \\
+C8 & Enlace a documentaci\'on para desarrolladores & Ver \texttt{README.md} del repositorio \\
+C9 & Email de soporte & TODO: email de contacto \\
+\bottomrule
+\end{tabular*}
+\end{table*}
+
+\section{Introducci\'on}\label{sec:intro}
+
+Las redes definidas por software (SDN) separan el plano de control
+del plano de datos, concentrando la inteligencia de la red en un
+controlador l\'ogicamente centralizado \citep{kreutz2015sdn}. Esta
+centralizaci\'on simplifica la gesti\'on de la red, pero tambi\'en
+convierte al controlador en un punto \'unico de falla: un ataque de
+denegaci\'on de servicio distribuido (DDoS) que sature al
+controlador, a los switches, o a un servicio alojado puede degradar o
+tumbar todo el segmento de red que gobierna. Detectar estos ataques a
+tiempo, y separarlos de forma confiable de picos de tr\'afico
+leg\'itimo, requiere datasets que sean a la vez representativos de
+despliegues SDN reales y etiquetados con precisi\'on.
+
+La mayor\'ia de los datasets de detecci\'on de intrusiones
+disponibles p\'ublicamente, como NSL-KDD
+\citep{tavallaee2009nslkdd}, CICIDS2017
+\citep{sharafaldin2018cicflowmeter} y CICDDoS2019
+\citep{sharafaldin2019cicddos2019}, no fueron capturados dentro de un
+entorno SDN: carecen de se\~nales propias de OpenFlow, como la
+ocupaci\'on de la tabla de flujos o la carga del controlador, y sin
+embargo suelen reutilizarse fuera de ese contexto para entrenar
+clasificadores orientados a SDN. Trabajos recientes empezaron a
+cerrar esta brecha generando datasets de DDoS directamente dentro de
+bancos de pruebas Mininet/Ryu. Kumar y Gupta publicaron dos datasets
+de un solo vector construidos as\'i: un dataset de inundaci\'on
+TCP-SYN \citep{kumar2025synflood} y, m\'as recientemente, un dataset
+de inundaci\'on ICMP \citep{kumar2026icmpfloodsdn} en el que el
+tr\'afico normal se captura conectando un host de Mininet a una
+conexi\'on real a internet y navegando sitios web reales (YouTube,
+Facebook, noticias, etc.), en vez de depender de generadores de
+tr\'afico sint\'etico. Este enfoque de tr\'afico real aumenta el
+realismo, pero introduce dos limitaciones pr\'acticas para un
+benchmark reutilizable: el dataset resultante queda atado a un solo
+vector de ataque, y no es reproducible entre corridas, ya que el
+contenido y los tiempos capturados dependen de lo que el internet
+real ofrezca en el momento de la captura.
+
+Este trabajo, Campus-DDoS-SDN, aborda ambas limitaciones dentro de un
+\'unico banco de pruebas completamente reproducible. Se lanzan cuatro
+vectores de ataque (inundaci\'on TCP-SYN, inundaci\'on HTTP,
+Slowloris e inundaci\'on ICMP) desde hosts ya comprometidos contra
+una misma v\'ictima compartida, un portal web, dentro de una
+topolog\'ia Mininet/Ryu que imita un campus universitario: un esquema
+de switches core/DMZ m\'as un laboratorio emulado por \'area
+acad\'emica. A diferencia de los datasets previos de un solo vector o
+de capturas totalmente separadas, los usuarios leg\'itimos siguen
+navegando el portal durante todo el ataque, de modo que cada captura
+mezcla flujos benignos y maliciosos contra el mismo objetivo, tal
+como ocurrir\'ia en un incidente DDoS real. Las etiquetas de verdad
+fundamental se asignan por IP de origen en vez de por archivo de
+captura, y cada corrida adem\'as registra el efecto del ataque sobre
+la v\'ictima tal como lo percibe un cliente real (c\'odigo de
+respuesta HTTP, latencia, conexiones activas), junto con indicadores
+a nivel de red (paquetes y bytes por segundo, tama\~no de la tabla de
+flujos OpenFlow). El entorno completo, incluyendo los generadores de
+tr\'afico, el portal web propio y el pipeline de etiquetado, se
+empaqueta como una imagen Docker para eliminar cualquier dependencia
+de una conexi\'on a internet en vivo o de un sistema operativo de
+host espec\'ifico.
+
+Los principales aportes de este trabajo son:
+\begin{enumerate}[label=\roman*.]
+  \item Un dataset de DDoS multiclase que cubre cuatro vectores de
+        ataque contra una misma v\'ictima dentro de una topolog\'ia
+        SDN realista y multisegmento, en vez de un solo tipo de
+        ataque contra una red plana.
+  \item Etiquetado por flujo y por IP de origen que mantiene
+        mezclado el tr\'afico leg\'itimo y malicioso dentro de la
+        misma captura, m\'as cercano a un escenario de ataque real
+        que las capturas totalmente separadas usadas en trabajos
+        previos.
+  \item M\'etricas de impacto combinadas a nivel de red
+        (estad\'isticas de flujo y paquetes v\'ia CICFlowMeter) y a
+        nivel de aplicaci\'on (estado HTTP, latencia, saturaci\'on de
+        conexiones), capturadas autom\'aticamente en cada corrida.
+  \item Un entorno Docker de un solo comando, completamente
+        reproducible, que no depende de una conexi\'on a internet en
+        vivo, resolviendo la limitaci\'on de reproducibilidad de los
+        datasets SDN basados en tr\'afico real.
+\end{enumerate}
+
+\section{Descripci\'on del software}\label{sec:description}
+
+\subsection{Arquitectura general}
+Topolog\'ia Mininet de un campus reducido: m\'odem de borde, switch
+core SDN, DMZ con el portal v\'ictima, y un laboratorio emulado por
+\'area acad\'emica (alumnos + PCs infectadas), todo sobre Open
+vSwitch (datapath userspace) controlado por Ryu. Se generan cuatro
+tipos de ataque (SYN flood, HTTP flood, Slowloris, ICMP flood) desde
+las PCs infectadas mientras los alumnos siguen navegando el portal;
+conversi\'on a CSV etiquetado por IP con CICFlowMeter (m\'as un
+agrupador de flujos propio para ICMP, que CICFlowMeter no soporta);
+todo empaquetado en una imagen Docker para reproducibilidad completa.
+TODO: ampliar.
+
+\subsection{Funcionalidades del software}
+TODO: enumerar los scripts principales (\texttt{scripts/mininet},
+\texttt{scripts/wsl}, \texttt{scripts/docker}) y qu\'e hace cada uno.
+
+\section{Panorama de impacto}\label{sec:impact}
+TODO: completar. Punto de partida: a diferencia de
+\citep{kumar2026icmpfloodsdn}, que depende de una conexi\'on a
+internet real y por lo tanto no es reproducible entre corridas, este
+trabajo habilita comparaciones reproducibles de m\'etodos de
+detecci\'on multi-clase de DDoS en SDN.
+
+\subsection{Proyectos de investigaci\'on en curso que usan el software}
+TODO (si aplica).
+
+\subsection{Limitaciones y mejoras futuras}
+El tr\'afico normal se genera de forma sint\'etica y controlada (en
+vez de navegaci\'on real a internet, como en
+\citep{kumar2026icmpfloodsdn}), lo que reduce la diversidad/realismo
+del tr\'afico a cambio de reproducibilidad total. Trabajo futuro:
+detecci\'on en tiempo real mediante una aplicaci\'on Ryu propia que
+clasifique estad\'isticas OpenFlow en vivo.
+
+\subsection{Publicaciones habilitadas por este software}
+TODO (si aplica, una vez publicado).
+
+\section{Requisitos de software y hardware}\label{sec:requirements}
+
+\begin{table*}[t]
+\small
+\caption{Requisitos del banco de pruebas.}\label{tbl:testbed}
+\begin{tabular*}{\textwidth}{@{}p{1cm}LLp{2cm}@{}}
+\toprule
+N.\textsuperscript{o} & Descripci\'on & Herramienta & Versi\'on \\
+\midrule
+1 & Emulador de red & Mininet & TODO \\
+2 & Controlador SDN & Ryu & 4.34 \\
+3 & SYN / ICMP flood & hping3 & TODO \\
+4 & Ataque de baja tasa & slowhttptest & TODO \\
+5 & pcap a CSV & CICFlowMeter & 0.5.0 \\
+\bottomrule
+\end{tabular*}
+\end{table*}
+
+\section*{Agradecimientos}
+TODO (opcional).
+
+\bibliographystyle{cas-model2-names}
+\bibliography{references}
+
+\end{document}
