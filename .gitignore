@@ -5,6 +5,7 @@ data/raw/**/*.pcap
 data/raw/**/*.meta.json
 data/processed/*.csv
 data/metrics/*.csv
+data/analisis/
 
 # Venv de Ryu: symlink que solo tiene sentido en la maquina/WSL donde
 # se genero (apunta a ~/ataque-ryu-venv). Se recrea con
@@ -14,6 +15,7 @@ scripts/ryu/venv
 # Python
 __pycache__/
 *.pyc
+.venv/
 
 # Editor / OS
 .DS_Store

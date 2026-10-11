@@ -13,6 +13,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 IMAGE="${IMAGE:-ataque-sdn}"
 NAME="ataque-sdn-run"
+BENIGN_PORT="${BENIGN_PORT:-8080}"
 
 usage() {
   echo "Uso: bash scripts/docker/run_scenario.sh <verify|baseline|synflood|httpflood|slowloris|icmpflood|all|convert> [segundos]" >&2
@@ -36,6 +37,9 @@ fi
 cleanup() {
   if [ -n "${SAMPLER_PID:-}" ]; then
     kill "$SAMPLER_PID" >/dev/null 2>&1 || true
+  fi
+  if [ -n "${LOG_PID:-}" ]; then
+    kill "$LOG_PID" >/dev/null 2>&1 || true
   fi
   docker rm -f "$NAME" >/dev/null 2>&1 || true
 }
@@ -65,14 +69,22 @@ run_one() {
   fi
 
   echo "=== $scenario (${duration}s) ==="
+  echo "Trafico benigno: cuando el log diga 'Portal benigno listo', abre http://127.0.0.1:${BENIGN_PORT}/"
+  echo "Eso se mezcla con los alumnos. El ataque queda dentro de Docker, contra el portal emulado."
   docker run -d --name "$NAME" --privileged \
     -e DATA_DIR=/ataque/data \
     -e PYTHONDONTWRITEBYTECODE=1 \
+    -e BENIGN_PORT="$BENIGN_PORT" \
+    -p "127.0.0.1:${BENIGN_PORT}:${BENIGN_PORT}" \
     -v "$ROOT/data:/ataque/data" \
     -v "$ROOT/scripts/mininet:/ataque/mininet:ro" \
     -v "$ROOT/scripts/docker:/ataque/scripts:ro" \
     "$IMAGE" \
     bash /ataque/scripts/capture_campus.sh "$scenario" "$duration" >/dev/null
+
+  LOG_PID=""
+  docker logs -f "$NAME" &
+  LOG_PID=$!
 
   SAMPLER_PID=""
   if [ "$scenario" != "verify" ]; then
@@ -95,9 +107,25 @@ run_one() {
     wait "$SAMPLER_PID" || true
     SAMPLER_PID=""
   fi
+  if [ -n "$LOG_PID" ]; then
+    kill "$LOG_PID" >/dev/null 2>&1 || true
+    sleep 0.2
+    kill -9 "$LOG_PID" >/dev/null 2>&1 || true
+    wait "$LOG_PID" 2>/dev/null || true
+    LOG_PID=""
+  fi
   echo "----- logs ($scenario) -----"
   docker logs "$NAME" || true
   docker rm "$NAME" >/dev/null 2>&1 || true
+  if [ "$scenario" != "verify" ]; then
+    share="$ROOT/data/analisis/${scenario}/compartido"
+    mkdir -p "$share"
+    cp "$stats" "$share/docker.csv"
+    echo "Analisis: $ROOT/data/analisis/${scenario}/"
+    echo "  benigno/   trafico de alumnos y de tu navegador"
+    echo "  ataque/    trafico de las PCs infectadas"
+    echo "  compartido/  reparto.csv, por_ip.csv, reparto.txt, sonda.csv"
+  fi
   if [ "$status" != "0" ]; then
     echo "FALLO $scenario (codigo $status)" >&2
     exit "$status"

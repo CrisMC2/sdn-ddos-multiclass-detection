@@ -5,6 +5,9 @@ baseline: alumnos y PCs infectadas navegan el portal (nadie ataca).
 synflood, httpflood, slowloris, icmpflood: los alumnos siguen navegando
 y las PCs infectadas atacan el mismo portal.
 
+Si abres http://127.0.0.1:8080/ durante la medicion, ese trafico entra
+como cliente benigno real y queda mezclado en la misma captura.
+
 Uso (con Ryu ya en 127.0.0.1:6653):
     python3 capture_campus.py <escenario> [segundos] [salida.pcap]
 """
@@ -18,8 +21,10 @@ import time
 
 from mininet.log import setLogLevel, info
 
+from benign_mix import BENIGN_IFACE, iface_counter, split_capture, stop_benign
 from paths import metrics_dir, raw_dir
 from roles import (
+    BENIGN_CLIENT_IP,
     BROWSE_PAUSE_MAX,
     BROWSE_PAUSE_MIN,
     C2_NAME,
@@ -161,7 +166,7 @@ def _percentile(values, p):
 def _upsert_resumen(path, row):
     header = [
         'scenario', 'duration_s', 'samples', 'http_200', 'http_fail',
-        'latency_ms_avg', 'latency_ms_p95', 'server_rx_pps_avg', 'core_flows_max',
+        'latency_ms_avg', 'latency_ms_p95',         'server_rx_pps_avg', 'core_flows_max', 'benign_real_pps_avg',
     ]
     rows = []
     if os.path.isfile(path):
@@ -194,6 +199,7 @@ def main():
         'victim': VICTIM_IP,
         'students': [ip for _name, ip in students()],
         'bots': [ip for _name, ip in bots()],
+        'benign_client': BENIGN_CLIENT_IP,
         'pages': list(PAGES),
     }
     with open(meta_path, 'w') as fh:
@@ -238,14 +244,18 @@ def main():
         header = [
             'timestamp', 'elapsed_s', 'probe_http_code', 'probe_latency_ms',
             'server_rx_pps', 'server_rx_bps', 'server_conns', 'core_flows',
+            'benign_real_tx_pps', 'benign_real_tx_bps',
         ]
         prev_pkts = _counter(www, iface, 'rx_packets')
         prev_bytes = _counter(www, iface, 'rx_bytes')
+        prev_benign_pkts = iface_counter(BENIGN_IFACE, 'tx_packets')
+        prev_benign_bytes = iface_counter(BENIGN_IFACE, 'tx_bytes')
         prev_t = time.time()
         latencies = []
         ok_n = 0
         fail_n = 0
         pps_values = []
+        benign_pps_values = []
         flow_values = []
 
         with open(metrics_path, 'w', newline='') as fh:
@@ -267,7 +277,17 @@ def main():
                     pps = '%.1f' % ((pkts - prev_pkts) / dt)
                     bps = '%.1f' % ((nbytes - prev_bytes) / dt)
                     pps_values.append(float(pps))
+                benign_pkts = iface_counter(BENIGN_IFACE, 'tx_packets')
+                benign_bytes = iface_counter(BENIGN_IFACE, 'tx_bytes')
+                if benign_pkts is None or prev_benign_pkts is None:
+                    benign_pps = ''
+                    benign_bps = ''
+                else:
+                    benign_pps = '%.1f' % ((benign_pkts - prev_benign_pkts) / dt)
+                    benign_bps = '%.1f' % ((benign_bytes - prev_benign_bytes) / dt)
+                    benign_pps_values.append(float(benign_pps))
                 prev_pkts, prev_bytes, prev_t = pkts, nbytes, now
+                prev_benign_pkts, prev_benign_bytes = benign_pkts, benign_bytes
 
                 code, latency_ms = _probe(probe, VICTIM_IP)
                 if code == '200':
@@ -281,7 +301,7 @@ def main():
                     flow_values.append(flows)
                 writer.writerow([
                     int(now), elapsed, code, latency_ms, pps, bps,
-                    _conns(www), flows,
+                    _conns(www), flows, benign_pps, benign_bps,
                 ])
                 fh.flush()
                 remain = 1.0 - (time.time() - sample_started)
@@ -301,6 +321,10 @@ def main():
             'latency_ms_p95': _percentile(latencies, 0.95),
             'server_rx_pps_avg': avg_pps,
             'core_flows_max': max(flow_values) if flow_values else '',
+            'benign_real_pps_avg': (
+                '%.1f' % (sum(benign_pps_values) / len(benign_pps_values))
+                if benign_pps_values else ''
+            ),
         }
         resumen = os.path.join(metrics_dir(), 'resumen.csv')
         _upsert_resumen(resumen, row)
@@ -317,11 +341,18 @@ def main():
                 stop_host(net.get(name))
             net.get(VICTIM_NAME).cmd('pkill tcpdump 2>/dev/null || true')
             time.sleep(1)
+            stop_benign()
             net.stop()
         if os.path.isfile(tmp_out):
             shutil.copyfile(tmp_out, out)
             os.remove(tmp_out)
             info('*** Pcap: %s\n' % out)
+            try:
+                analysis, report = split_capture(out, meta, metrics_path)
+                info('*** Analisis: %s\n' % analysis)
+                info(report + '\n')
+            except OSError as exc:
+                info('*** No se pudo partir la captura: %s\n' % exc)
         else:
             info('*** No quedo pcap en %s\n' % tmp_out)
 

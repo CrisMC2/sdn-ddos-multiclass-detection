@@ -11,6 +11,13 @@ C2_NAME = 'c2'
 C2_IP = '192.168.9.10'
 C2_GW = '192.168.9.1'
 
+# Tu navegador entra por el proxy del contenedor. Sale hacia el portal
+# con esta IP, distinta de alumnos e infectados, y se etiqueta BENIGN.
+BENIGN_CLIENT_NAME = 'benigno-real'
+BENIGN_CLIENT_IP = '10.9.0.1'
+BENIGN_IFACE = 'benign0'
+BENIGN_PEER = 'benign1'
+
 # Un laboratorio por area academica de la UNCP (Huancayo).
 AREAS = (
     ('salud', '10.1.0', 'Salud'),

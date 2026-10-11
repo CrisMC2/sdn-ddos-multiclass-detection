@@ -39,12 +39,17 @@ campus definidas por software}
             state={},
             country={Peru}}
 
+\input{numeros.tex}
+
 \begin{abstract}
-TODO: resumen de ~100 palabras. Debe cubrir: que hace el software
-(entorno reproducible Mininet+Ryu+ML para generar y clasificar
-trafico DDoS multi-clase), como se diferencia del trabajo de
-referencia (deteccion de 4 tipos de ataque en vez de solo ICMP flood,
-entorno reproducible via Docker), y el resultado principal obtenido.
+Campus-DDoS-SDN es un banco de pruebas en Docker que genera y
+clasifica cuatro ataques DDoS contra el portal de un campus emulado
+con Mininet y Ryu. Los alumnos siguen navegando durante el ataque y
+cada flujo se etiqueta por la IP de origen, no por el archivo. Un
+bosque aleatorio, entrenado sin direcciones IP y probado en el
+laboratorio de Ciencias Agrarias, obtiene un F1 macro de \FmacroEs.
+\input{frase_es.tex}
+La clase ICMP no se afirma: en esa prueba solo hay dos flujos.
 \end{abstract}
 
 \begin{keywords}
@@ -65,14 +70,14 @@ Clasificaci\'on de tr\'afico de red
 Nr. & Descripci\'on & Completar en esta columna \\
 \midrule
 C1 & Versi\'on actual del c\'odigo & v1.0 \\
-C2 & Enlace permanente al repositorio de esta versi\'on & TODO: URL del repo \\
+C2 & Enlace permanente al repositorio de esta versi\'on & Completar la URL al publicar \\
 C3 & Enlace permanente a la Reproducible Capsule & -- \\
-C4 & Licencia legal del c\'odigo & TODO: elegir licencia (p.ej. MIT) \\
+C4 & Licencia legal del c\'odigo & MIT \\
 C5 & Sistema de control de versiones usado & git \\
 C6 & Lenguajes, herramientas y servicios usados & Python, Bash, Mininet, Open vSwitch, Ryu, CICFlowMeter, Docker \\
 C7 & Requisitos de compilaci\'on, entornos y dependencias & WSL2/Ubuntu 24.04 o Docker; Python 3.9 (Ryu) y Python 3.12 (CICFlowMeter); ver \texttt{README.md} \\
 C8 & Enlace a documentaci\'on para desarrolladores & Ver \texttt{README.md} del repositorio \\
-C9 & Email de soporte & TODO: email de contacto \\
+C9 & Email de soporte & cristhianmartinezcasas@gmail.com \\
 \bottomrule
 \end{tabular*}
 \end{table*}
@@ -162,41 +167,54 @@ Los principales aportes de este trabajo son:
 \section{Descripci\'on del software}\label{sec:description}
 
 \subsection{Arquitectura general}
-Topolog\'ia Mininet de un campus reducido: m\'odem de borde, switch
-core SDN, DMZ con el portal v\'ictima, y un laboratorio emulado por
-\'area acad\'emica (alumnos + PCs infectadas), todo sobre Open
-vSwitch (datapath userspace) controlado por Ryu. Se generan cuatro
-tipos de ataque (SYN flood, HTTP flood, Slowloris, ICMP flood) desde
-las PCs infectadas mientras los alumnos siguen navegando el portal;
-conversi\'on a CSV etiquetado por IP con CICFlowMeter (m\'as un
-agrupador de flujos propio para ICMP, que CICFlowMeter no soporta);
-todo empaquetado en una imagen Docker para reproducibilidad completa.
-TODO: ampliar.
+La topolog\'ia es un campus reducido: m\'odem de borde, switch core,
+DMZ con el portal y un laboratorio por \'area acad\'emica. Cada
+laboratorio tiene alumnos y PCs infectadas. Los switches son Open
+vSwitch en userspace, con Ryu. Durante un ataque los alumnos siguen
+pidiendo p\'aginas del portal. Desde el navegador del operador,
+\texttt{http://127.0.0.1:8080/} entra como un cliente benigno m\'as
+(\texttt{10.9.0.1}); el ataque no sale del contenedor.
 
 \subsection{Funcionalidades del software}
-TODO: enumerar los scripts principales (\texttt{scripts/mininet},
-\texttt{scripts/wsl}, \texttt{scripts/docker}) y qu\'e hace cada uno.
+\texttt{scripts/docker/run\_scenario.sh} levanta un escenario
+(\texttt{baseline}, \texttt{synflood}, \texttt{httpflood},
+\texttt{slowloris}, \texttt{icmpflood}) o los cinco con \texttt{all}.
+\texttt{scripts/mininet/capture\_campus.py} captura el pcap y la sonda
+del alumno. \texttt{scripts/mininet/pcap\_to\_csv.py} etiqueta cada
+flujo por la IP de origen: el alumno queda \texttt{BENIGN} y la PC
+infectada lleva el nombre del ataque. \texttt{notebooks/deteccion\_ddos.ipynb}
+entrena el bosque sin usar la IP y lo prueba en Ciencias Agrarias.
+\texttt{scripts/docker/preparar\_analisis.sh} repite ese cuaderno y
+escribe \texttt{notebooks/resultados/informe.txt}.
 
 \section{Panorama de impacto}\label{sec:impact}
-TODO: completar. Punto de partida: a diferencia de
-\citep{kumar2026icmpfloodsdn}, que depende de una conexi\'on a
-internet real y por lo tanto no es reproducible entre corridas, este
-trabajo habilita comparaciones reproducibles de m\'etodos de
-detecci\'on multi-clase de DDoS en SDN.
+El dataset de referencia de un solo vector no se puede repetir, porque
+el tr\'afico normal sale de internet en vivo
+\citep{kumar2026icmpfloodsdn}. Este banco s\'i se repite, mezcla alumno
+y ataque en la misma captura, y ya produce un clasificador. En Ciencias
+Agrarias, laboratorio que no entr\'o al entrenamiento, el F1 macro es
+\FmacroEs. La sonda dice qu\'e se siente en la p\'agina, no solo
+qu\'e etiqueta cay\'o.
+
+\input{tabla_resultados.tex}
 
 \subsection{Proyectos de investigaci\'on en curso que usan el software}
-TODO (si aplica).
+El banco se usa en el trabajo de tesis de pregrado de los autores en
+la Universidad Nacional del Centro del Per\'u.
 
 \subsection{Limitaciones y mejoras futuras}
-El tr\'afico normal se genera de forma sint\'etica y controlada (en
-vez de navegaci\'on real a internet, como en
-\citep{kumar2026icmpfloodsdn}), lo que reduce la diversidad/realismo
-del tr\'afico a cambio de reproducibilidad total. Trabajo futuro:
-detecci\'on en tiempo real mediante una aplicaci\'on Ryu propia que
-clasifique estad\'isticas OpenFlow en vivo.
+El resultado de la tabla sale de los alumnos emulados. El navegador
+del operador todav\'ia no est\'a en ese entrenamiento. La sonda del
+baseline dura 30~s y las de los ataques 120~s; la comparaci\'on usa
+tasas. ICMP tiene del orden de diez flujos en todo el conjunto y dos
+en la prueba: no se informa como clase consolidada. El clasificador
+no corre dentro de Ryu; trabaja sobre flujos ya capturados. El paso
+siguiente es volver a capturar con el navegador del operador dentro
+y repetir la misma prueba.
 
 \subsection{Publicaciones habilitadas por este software}
-TODO (si aplica, una vez publicado).
+A\'un no hay otra publicaci\'on adem\'as de este art\'iculo. El
+software es el que permite esa evaluaci\'on.
 
 \section{Requisitos de software y hardware}\label{sec:requirements}
 
@@ -207,17 +225,17 @@ TODO (si aplica, una vez publicado).
 \toprule
 N.\textsuperscript{o} & Descripci\'on & Herramienta & Versi\'on \\
 \midrule
-1 & Emulador de red & Mininet & TODO \\
+1 & Emulador de red & Mininet & Ubuntu 24.04 \\
 2 & Controlador SDN & Ryu & 4.34 \\
-3 & SYN / ICMP flood & hping3 & TODO \\
-4 & Ataque de baja tasa & slowhttptest & TODO \\
+3 & SYN / ICMP flood & hping3 & Ubuntu 24.04 \\
+4 & Ataque de baja tasa & slowhttptest & Ubuntu 24.04 \\
 5 & pcap a CSV & CICFlowMeter & 0.5.0 \\
 \bottomrule
 \end{tabular*}
 \end{table*}
 
 \section*{Agradecimientos}
-TODO (opcional).
+Los autores agradecen a la Universidad Nacional del Centro del Per\'u.
 
 \bibliographystyle{cas-model2-names}
 \bibliography{references}

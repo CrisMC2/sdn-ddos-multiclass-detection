@@ -1,0 +1,40 @@
+Informe para analizar
+
+Esto sale de las capturas ya convertidas en data/processed.
+Tu navegador (10.9.0.1) no esta en ese entrenamiento.
+Para meterlo hay que recapturar: bash scripts/docker/preparar_analisis.sh --capturar
+
+Como se probo
+  Modelo: bosque aleatorio, clases equilibradas.
+  No usa IP, puertos ni marca de tiempo.
+  Entrena: Salud, Ingenierias, Administracion, Sociales.
+  Prueba: Ciencias Agrarias.
+  F1 macro: 0.986.
+
+Clase        Precision  Recall  F1     Flujos  En el flujo | En la pagina
+BENIGN          0.972   0.966  0.969    1779  se distingue bien | es el tráfico de referencia
+httpflood       0.958   0.966  0.962    1456  se distingue bien | la pagina tarda mas; suben los paquetes al portal
+icmpflood       1.000   1.000  1.000       2  hay muy pocos flujos para afirmarlo | suben los paquetes al portal
+slowloris       1.000   1.000  1.000     126  se distingue bien | la pagina deja de abrir
+synflood        1.000   1.000  1.000    4706  se distingue bien | suben los paquetes al portal
+
+Sonda del portal (tasas, no conteos). El baseline de esta tabla dura 30 s; los ataques, 120 s.
+Escenario   Abrio  Latencia_ms  Paquetes/s
+synflood      100%        403.2       472.5
+httpflood     100%        545.4       375.9
+slowloris       1%        403.9        72.0
+icmpflood     100%        403.3       270.9
+baseline      100%        404.7       112.2
+
+Que se puede afirmar
+  BENIGN, httpflood, slowloris y synflood se separan en un laboratorio no visto.
+  Slowloris es el que deja la pagina sin abrir.
+  HTTP flood no la tumba: la vuelve mas lenta y sube los paquetes.
+  SYN flood e ICMP flood suben los paquetes y la pagina sigue respondiendo.
+
+Que no se puede afirmar
+  icmpflood: en la prueba hay 2 flujos. El acierto no alcanza.
+  El modelo no vio tu navegador. Esta lectura es del alumno emulado.
+  No es deteccion en vivo dentro de Ryu. Clasifica flujos ya capturados.
+
+Figuras: notebooks/resultados/matriz.png, matriz_binaria.png, importancia.png

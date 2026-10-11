@@ -24,6 +24,9 @@ from scapy.all import ICMP, IP, rdpcap
 from paths import processed_dir, raw_dir
 
 ICMP_IDLE_TIMEOUT = 5.0
+# Un flood ICMP continuo, si no se corta, es un solo flujo por PC.
+# Cada 10 s se cierra y empieza otro, para que la clase tenga muestras.
+ICMP_ACTIVE_TIMEOUT = 10.0
 ICMP_FIELDS = [
     'src_ip', 'dst_ip', 'src_port', 'dst_port', 'protocol', 'timestamp',
     'flow_duration', 'flow_byts_s', 'flow_pkts_s',
@@ -63,7 +66,10 @@ def convert_icmp(pcap_path, csv_path):
         key = frozenset((src, dst))
 
         flow = open_flows.get(key)
-        if flow is not None and ts - flow['last_ts'] > ICMP_IDLE_TIMEOUT:
+        if flow is not None and (
+            ts - flow['last_ts'] > ICMP_IDLE_TIMEOUT
+            or ts - flow['start_ts'] >= ICMP_ACTIVE_TIMEOUT
+        ):
             finished.append(flow)
             flow = None
         if flow is None:
@@ -128,6 +134,8 @@ def label_for(src, meta, fallback):
         return fallback
     bots = set(meta.get('bots') or [])
     scenario = meta.get('scenario') or fallback
+    if src and src == meta.get('benign_client'):
+        return 'BENIGN'
     if src in bots and scenario != 'baseline':
         return scenario
     return 'BENIGN'
