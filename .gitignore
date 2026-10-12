@@ -5,6 +5,11 @@ data/raw/**/*.pcap
 data/raw/**/*.meta.json
 data/processed/*.csv
 data/metrics/*.csv
+data/analisis/
+data/real/wireshark/**
+!data/real/wireshark/README.md
+data/real/anonimizado/
+data/processed/hibrido/
 
 # Venv de Ryu: symlink que solo tiene sentido en la maquina/WSL donde
 # se genero (apunta a ~/ataque-ryu-venv). Se recrea con
@@ -14,6 +19,7 @@ scripts/ryu/venv
 # Python
 __pycache__/
 *.pyc
+.venv/
 
 # Editor / OS
 .DS_Store
@@ -36,3 +42,9 @@ paper/*.out
 paper/*.synctex.gz
 paper/*.spl
 paper/*.abs
+paper/*.fls
+paper/*.fdb_latexmk
+docs/*.aux
+docs/*.log
+docs/*.out
+docs/*.toc

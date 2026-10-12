@@ -1,0 +1,17 @@
+\begin{table}[t]
+\centering
+\small
+\caption{Detection (random forest). Macro F1 \Fmacro.}
+\label{tbl:deteccion}
+\begin{tabular}{lrrrrl}
+\hline
+Clase & Prec. & Recall & F1 & Flujos & On the flow \\
+\hline
+BENIGN & 0.972 & 0.966 & 0.969 & 1779 & separated \\
+httpflood & 0.958 & 0.966 & 0.962 & 1456 & separated \\
+icmpflood & 1.000 & 1.000 & 1.000 & 2 & too few flows to claim \\
+slowloris & 1.000 & 1.000 & 1.000 & 126 & separated \\
+synflood & 1.000 & 1.000 & 1.000 & 4706 & separated \\
+\hline
+\end{tabular}
+\end{table}

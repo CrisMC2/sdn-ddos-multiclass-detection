@@ -11,6 +11,7 @@ Uso (con Ryu ya escuchando en 127.0.0.1:6653):
     python3 topo.py test   # alumno->portal, infectado->portal, C2->infectado
 """
 import os
+import subprocess
 import sys
 import time
 
@@ -20,8 +21,10 @@ from mininet.cli import CLI
 from mininet.log import setLogLevel, info
 from mininet.link import TCLink
 
+from benign_mix import attach_benign_client, benign_port, stop_benign
 from roles import (
     AREAS,
+    BENIGN_CLIENT_IP,
     C2_GW,
     C2_IP,
     C2_NAME,
@@ -144,6 +147,13 @@ def build():
     web = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'webserver.py')
     info('*** Portal en %s (%s:80)\n' % (VICTIM_NAME, VICTIM_IP))
     www.cmd('echo starting > /tmp/www.log; python3 %s 80 >> /tmp/www.log 2>&1 &' % web)
+
+    ok, detail = attach_benign_client(dmz)
+    if ok:
+        info('*** Portal benigno listo: %s\n' % detail)
+        info('*** Tu navegador sale como %s y se mezcla con el campus. El ataque no sale de esta red.\n' % BENIGN_CLIENT_IP)
+    else:
+        info('*** Sin entrada para tu navegador (%s). El escenario sigue con los alumnos emulados.\n' % detail)
     return net
 
 
@@ -187,6 +197,23 @@ def test_campus(net):
         if os.path.isfile('/tmp/www.log'):
             info(open('/tmp/www.log').read())
 
+    browser = ''
+    try:
+        browser = subprocess.check_output(
+            [
+                'curl', '-s', '-o', '/dev/null', '-w', '%{http_code}',
+                '--max-time', '5', 'http://127.0.0.1:%d/' % benign_port(),
+            ],
+            text=True,
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        browser = ''
+    if browser == '200':
+        info('OK navegador externo abre el portal (HTTP %s)\n' % browser)
+    else:
+        failed += 1
+        info('FALLO navegador externo abre el portal (HTTP %r)\n' % browser)
+
     if failed:
         info('--- alumno ---\n')
         info(net.get('salud-u1').cmd('ip -4 addr; ip -4 route'))
@@ -209,6 +236,7 @@ def main():
             sys.exit(1 if failed else 0)
         CLI(net)
     finally:
+        stop_benign()
         net.stop()
 
 

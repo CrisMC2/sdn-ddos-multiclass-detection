@@ -32,3 +32,8 @@ def metrics_dir():
 
 def processed_dir():
     return ensure(os.path.join(data_dir(), 'processed'))
+
+
+def analysis_dir(scenario):
+    """Carpetas de una corrida: benigno, ataque y como se reparten."""
+    return ensure(os.path.join(data_dir(), 'analisis', scenario))

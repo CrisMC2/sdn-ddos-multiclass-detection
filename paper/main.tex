@@ -46,14 +46,19 @@ multi-vector DDoS attack detection in software-defined campus networks}
             state={},
             country={Peru}}
 
+\input{numeros.tex}
+
 \begin{abstract}
-% Software Impacts pide ~100 palabras. TODO: completar una vez esten
-% los resultados de la Fase 5.
-TODO: resumen de ~100 palabras. Debe cubrir: que hace el software
-(entorno reproducible Mininet+Ryu+ML para generar y clasificar
-trafico DDoS multi-clase), como se diferencia del trabajo de
-referencia (deteccion de 4 tipos de ataque en vez de solo ICMP flood,
-entorno reproducible via Docker), y el resultado principal obtenido.
+Campus-DDoS-SDN is a Docker testbed that generates and classifies
+four DDoS attacks against the portal of a campus emulated with
+Mininet and Ryu. Students keep browsing during the attack, and each
+flow is labelled by source IP rather than by capture file. A random
+forest trained without IP addresses and tested on the Ciencias
+Agrarias laboratory, which was held out of training, reaches a macro
+F1 of \Fmacro.
+\input{frase_en.tex}
+ICMP is not claimed as a settled class: that test contains only two
+flows.
 \end{abstract}
 
 \begin{keywords}
@@ -79,14 +84,14 @@ Network traffic classification
 Nr. & Code metadata description & Please fill in this column \\
 \midrule
 C1 & Current code version & v1.0 \\
-C2 & Permanent link to code/repository used for this code version & TODO: URL del repo \\
+C2 & Permanent link to code/repository used for this code version & Fill in the URL at publication \\
 C3 & Permanent link to Reproducible Capsule & -- \\
-C4 & Legal Code License & TODO: elegir licencia (p.ej. MIT) \\
+C4 & Legal Code License & MIT \\
 C5 & Code versioning system used & git \\
 C6 & Software code languages, tools, and services used & Python, Bash, Mininet, Open vSwitch, Ryu, CICFlowMeter, Docker \\
 C7 & Compilation requirements, operating environments \& dependencies & WSL2/Ubuntu 24.04 o Docker; Python 3.9 (Ryu) y Python 3.12 (CICFlowMeter); ver \texttt{README.md} \\
 C8 & Link to developer documentation/manual & Ver \texttt{README.md} del repositorio \\
-C9 & Support email for questions & TODO: email de contacto \\
+C9 & Support email for questions & cristhianmartinezcasas@gmail.com \\
 \bottomrule
 \end{tabular*}
 \end{table*}
@@ -170,48 +175,72 @@ The main contributions of this work are:
         does not depend on a live internet connection, addressing the
         reproducibility limitation of real-traffic-based SDN
         datasets.
+  \item A random-forest classifier trained without IP addresses that
+        reaches a macro F1 of \Fmacro on the held-out Ciencias
+        Agrarias laboratory, plus a pipeline ready to mix authorized
+        Wireshark captures of benign student traffic with
+        simulation-only attacks.
 \end{enumerate}
 
 \section{Software description}\label{sec:description}
 
 \subsection{Architecture overview}
-Topologia Mininet de 5 hosts (servidor propio, 2 clientes, 2
-atacantes) sobre un switch Open vSwitch (datapath userspace)
-controlado por Ryu; generacion de 4 tipos de ataque (SYN flood, HTTP
-flood, Slowloris, ICMP flood) capturados por separado; conversion a
-CSV con CICFlowMeter (y un agrupador de flujos propio para ICMP, que
-CICFlowMeter no soporta); todo empaquetado en una imagen Docker para
-reproducibilidad completa. TODO: ampliar.
+The topology is a reduced campus: an edge modem, a core switch, a DMZ
+holding the portal, and one laboratory per academic area. Each
+laboratory has students and compromised hosts. Switches are Open
+vSwitch in userspace, controlled by Ryu. Students keep requesting
+portal pages during an attack. The operator's browser, at
+\texttt{http://127.0.0.1:8080/}, joins as one more benign client
+(\texttt{10.9.0.1}). The attack does not leave the container.
 
 \subsection{Software functionalities}
-TODO: enumerar los scripts principales (\texttt{scripts/mininet},
-\texttt{scripts/wsl}, \texttt{scripts/docker}) y que hace cada uno.
+\texttt{scripts/docker/run\_scenario.sh} runs one scenario
+(\texttt{baseline}, \texttt{synflood}, \texttt{httpflood},
+\texttt{slowloris}, \texttt{icmpflood}) or all five.
+\texttt{scripts/mininet/capture\_campus.py} stores the pcap and the
+student probe. \texttt{scripts/mininet/pcap\_to\_csv.py} labels each
+flow by source IP: a student stays \texttt{BENIGN} and a compromised
+host takes the attack name.
+\texttt{notebooks/analisis\_completo.py} trains the forest without IP
+addresses and tests it on Ciencias Agrarias.
+\texttt{scripts/docker/preparar\_hibrido.sh} anonymizes authorized
+student Wireshark captures, mixes them with simulation attacks, and
+writes \texttt{notebooks/resultados/informe\_hibrido.txt}. The attack
+is never run against the real campus network.
 
 \section{Impact overview}\label{sec:impact}
-% Seccion explicitamente pedida por la plantilla de Software Impacts.
-% Cubrir: que nuevas preguntas de investigacion habilita, en que
-% forma/medida mejora la investigacion existente, si cambio la
-% practica diaria de sus usuarios, que tan difundido esta su uso, y si
-% se usa en entornos comerciales.
-TODO: completar. Punto de partida: a diferencia de
-\cite{kumar2026icmpfloodsdn}, que depende de una conexion a internet
-real y por lo tanto no es reproducible entre corridas, este trabajo
-habilita comparaciones reproducibles de metodos de deteccion
-multi-clase de DDoS en SDN.
+The single-vector reference dataset cannot be repeated, because its
+benign traffic comes from the live internet
+\citep{kumar2026icmpfloodsdn}. This testbed can be repeated, mixes
+student and attack traffic in the same capture, and already yields a
+classifier. On Ciencias Agrarias, a laboratory excluded from
+training, macro F1 is \Fmacro. The probe states what the page feels,
+not only which label was assigned. With institutional authorization,
+the same pipeline admits real benign traffic (Wireshark) while keeping
+the attack inside the container.
+
+\input{tabla_resultados_en.tex}
 
 \subsection{Ongoing research projects using the software}
-TODO (si aplica).
+The testbed is used in the authors' undergraduate thesis at the
+Universidad Nacional del Centro del Per\'u. The Wireshark capture
+protocol for the network officer is documented in
+\texttt{docs/documento\_encargado.docx}.
 
 \subsection{Limitations and future improvements}
-El trafico normal se genera de forma sintetica y controlada (en vez
-de navegacion real a internet, como en \cite{kumar2026icmpfloodsdn}),
-lo que reduce la diversidad/realismo del trafico a cambio de
-reproducibilidad total. Trabajo futuro: deteccion en tiempo real
-mediante una aplicacion Ryu propia que clasifique estadisticas
-OpenFlow en vivo.
+The table is still computed from emulated students. The hybrid
+dataset (Wireshark plus simulated attack) is ready in the code and is
+updated when the authorized pcaps arrive. The baseline probe lasts
+30~s and the attack probes last 120~s; the comparison uses rates.
+ICMP has on the order of ten flows in the whole set and two in the
+test, so it is not reported as a settled class. The classifier does
+not run inside Ryu; it scores flows that have already been captured.
+Future work: repeat the test with the Wireshark background, a mixed
+four-vector scenario, and more ICMP samples.
 
 \subsection{List of scholarly publications enabled by this software}
-TODO (si aplica, una vez publicado).
+There is no other publication yet. This software is what makes the
+evaluation in this article possible.
 
 \section{Software and hardware requirements}\label{sec:requirements}
 
@@ -220,19 +249,19 @@ TODO (si aplica, una vez publicado).
 \caption{Testbed setup requirements.}\label{tbl:testbed}
 \begin{tabular*}{\textwidth}{@{}p{1cm}LLp{2cm}@{}}
 \toprule
-N.\textsuperscript{o} & Descripcion & Herramienta & Version \\
+N.\textsuperscript{o} & Description & Tool & Version \\
 \midrule
-1 & Emulador de red & Mininet & TODO \\
-2 & Controlador SDN & Ryu & 4.34 \\
-3 & SYN / ICMP flood & hping3 & TODO \\
-4 & Ataque de baja tasa & slowhttptest & TODO \\
+1 & Network emulator & Mininet & Ubuntu 24.04 \\
+2 & SDN controller & Ryu & 4.34 \\
+3 & SYN / ICMP flood & hping3 & Ubuntu 24.04 \\
+4 & Low-rate attack & slowhttptest & Ubuntu 24.04 \\
 5 & pcap a CSV & CICFlowMeter & 0.5.0 \\
 \bottomrule
 \end{tabular*}
 \end{table*}
 
 \section*{Acknowledgements}
-TODO (opcional).
+The authors thank the Universidad Nacional del Centro del Per\'u.
 
 \bibliographystyle{cas-model2-names}
 \bibliography{references}

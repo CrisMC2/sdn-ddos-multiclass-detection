@@ -155,7 +155,88 @@ bash scripts/docker/run_scenario.sh httpflood 20
 
 `verify` comprueba tres caminos: un alumno llega al portal, un infectado
 llega al portal, y el C2 llega a un infectado. También pide una página
-y tiene que responder 200.
+y tiene que responder 200. Además comprueba que tu navegador, en
+`http://127.0.0.1:8080/`, llega al mismo portal.
+
+## Analizar
+
+No hace falta volver a capturar para leer el resultado de esta corrida:
+
+```bash
+bash scripts/docker/preparar_analisis.sh
+# o, equivalente y más completo:
+.venv/bin/python notebooks/analisis_completo.py
+```
+
+Eso reentrena el bosque con los CSV que ya están y escribe
+`notebooks/resultados/informe.txt`. La tabla del artículo queda en
+`paper/tabla_resultados.tex`. El informe es lo que se lee.
+
+Para armar otra corrida, de 120 segundos, y rehacer ese informe:
+
+```bash
+bash scripts/docker/preparar_analisis.sh --capturar
+```
+
+## Documento para el encargado + Wireshark
+
+PDFs ya compilados:
+
+- `paper/main_es.pdf` — artículo (español)
+- `paper/main.pdf` — artículo (inglés, Software Impacts)
+- `docs/protocolo_encargado.pdf` — protocolo corto para el encargado
+- `docs/documento_encargado.docx` — versión larga
+
+Para recompilar: `bash paper/compilar.sh both`
+
+### Cuando haya el escaneo / pcap real
+
+```bash
+bash usar_datos_reales.sh ~/Descargas/alumnos.pcapng
+```
+
+O copia el `.pcap` a `data/real/wireshark/` y corre `bash usar_datos_reales.sh`.
+
+Eso anonimiza, mezcla con los ataques de la simulación, entrena el
+modelo y deja `notebooks/resultados/informe_hibrido.txt`. El ataque
+**no** se ejecuta contra la red real.
+
+## Mezclar tu tráfico benigno
+
+Tú te conectas. El ataque no sale de Docker: sigue yendo solo al portal
+emulado `10.0.0.10`.
+
+Cuando el log diga `Portal benigno listo`, abre en el navegador de tu Mac:
+
+```text
+http://127.0.0.1:8080/
+```
+
+Sirven las mismas cinco páginas (`/`, `/login`, `/notas`, `/aula`,
+`/biblioteca`). Ese tráfico entra como `10.9.0.1`, se mezcla con los
+alumnos emulados y, si el escenario es un ataque, con las PCs infectadas.
+En un ataque la página puede responder 503: es el efecto que se mide, no
+un fallo de la conexión.
+
+La medición dura los segundos que pasaste (20, 120, …) y empieza cuando
+la red ya está arriba, cerca de un minuto después de lanzar el script.
+Si 8080 está ocupado: `BENIGN_PORT=8081 bash scripts/docker/run_scenario.sh baseline 120`.
+
+Cada corrida queda partida para ver cómo se reparte el enlace:
+
+```text
+data/analisis/<escenario>/benigno/trafico.pcap
+data/analisis/<escenario>/ataque/trafico.pcap
+data/analisis/<escenario>/compartido/reparto.txt
+data/analisis/<escenario>/compartido/reparto.csv
+data/analisis/<escenario>/compartido/por_ip.csv
+data/analisis/<escenario>/compartido/sonda.csv
+```
+
+`reparto.txt` dice qué porcentaje enviaron tu navegador, los alumnos y
+el ataque. `por_ip.csv` lo desglosa por máquina. La etiqueta del CSV de
+flujos no cambia: tu navegador y los alumnos quedan `BENIGN`; la IP
+infectada lleva el nombre del ataque.
 
 `baseline 20` y `httpflood 20` duran unos 20 segundos de medición, más
 el arranque de la red (puede ser un minuto). La primera vez, si no
