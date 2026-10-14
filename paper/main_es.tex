@@ -49,7 +49,7 @@ cada flujo se etiqueta por la IP de origen, no por el archivo. Un
 bosque aleatorio, entrenado sin direcciones IP y probado en el
 laboratorio de Ciencias Agrarias, obtiene un F1 macro de \FmacroEs.
 \input{frase_es.tex}
-La clase ICMP no se afirma: en esa prueba solo hay dos flujos.
+La clase ICMP no se afirma: en la prueba de Agrarias hay 24 flujos.
 \end{abstract}
 
 \begin{keywords}
@@ -75,7 +75,7 @@ C3 & Enlace permanente a la Reproducible Capsule & -- \\
 C4 & Licencia legal del c\'odigo & MIT \\
 C5 & Sistema de control de versiones usado & git \\
 C6 & Lenguajes, herramientas y servicios usados & Python, Bash, Mininet, Open vSwitch, Ryu, CICFlowMeter, Docker \\
-C7 & Requisitos de compilaci\'on, entornos y dependencias & WSL2/Ubuntu 24.04 o Docker; Python 3.9 (Ryu) y Python 3.12 (CICFlowMeter); ver \texttt{README.md} \\
+C7 & Requisitos de compilaci\'on, entornos y dependencias & Docker, Ubuntu 24.04; Python 3.9.25 y 3.12.3 \\
 C8 & Enlace a documentaci\'on para desarrolladores & Ver \texttt{README.md} del repositorio \\
 C9 & Email de soporte & cristhianmartinezcasas@gmail.com \\
 \bottomrule
@@ -218,10 +218,10 @@ de redes en \texttt{docs/documento\_encargado.docx}.
 \subsection{Limitaciones y mejoras futuras}
 El resultado de la tabla sale a\'un de los alumnos emulados. El
 dataset h\'ibrido (Wireshark + ataque simulado) queda listo en el
-c\'odigo y se actualiza al recibir los pcap autorizados. La sonda del
-baseline dura 30~s y las de los ataques 120~s; la comparaci\'on usa
-tasas. ICMP tiene del orden de diez flujos en todo el conjunto y dos
-en la prueba: no se informa como clase consolidada. El clasificador
+c\'odigo y se actualiza al recibir los pcap autorizados. Cada
+escenario de esta corrida dura 120~s. ICMP suma 120 flujos en todo
+el conjunto y 24 en la prueba de Agrarias: el F1 perfecto de esa
+clase no se informa como resultado consolidado. El clasificador
 no corre dentro de Ryu; trabaja sobre flujos ya capturados. Trabajo
 futuro: repetir la prueba con el fondo Wireshark, un escenario mixto
 de cuatro vectores a la vez, y m\'as muestras ICMP.
@@ -232,21 +232,34 @@ software es el que permite esa evaluaci\'on.
 
 \section{Requisitos de software y hardware}\label{sec:requirements}
 
+El banco corre en un contenedor Ubuntu 24.04. Las versiones de la
+tabla se leyeron dentro de la imagen \texttt{ataque-sdn}. El modelo
+se entren\'o con Python 3.12.3, scikit-learn 1.9.1 y pandas 3.0.6.
+Ryu usa Python 3.9.25.
+
 \begin{table*}[t]
 \small
 \caption{Requisitos del banco de pruebas.}\label{tbl:testbed}
-\begin{tabular*}{\textwidth}{@{}p{1cm}LLp{2cm}@{}}
+\begin{tabular*}{\textwidth}{@{}p{1cm}LLp{3.2cm}@{}}
 \toprule
 N.\textsuperscript{o} & Descripci\'on & Herramienta & Versi\'on \\
 \midrule
-1 & Emulador de red & Mininet & Ubuntu 24.04 \\
-2 & Controlador SDN & Ryu & 4.34 \\
-3 & SYN / ICMP flood & hping3 & Ubuntu 24.04 \\
-4 & Ataque de baja tasa & slowhttptest & Ubuntu 24.04 \\
-5 & pcap a CSV & CICFlowMeter & 0.5.0 \\
+1 & Emulador de red & Mininet & 2.3.0 \\
+2 & Switch virtual & Open vSwitch & 3.3.9 \\
+3 & Controlador SDN & Ryu & 4.34 \\
+4 & Inundaci\'on SYN e ICMP & hping3 & 3.0.0-alpha-2 \\
+5 & Ataque de baja tasa & slowhttptest & 1.9.0 \\
+6 & Captura de paquetes & tcpdump & 4.99.4 \\
+7 & pcap a CSV & CICFlowMeter & 0.5.0 \\
+8 & Sistema del contenedor & Ubuntu & 24.04 \\
 \bottomrule
 \end{tabular*}
 \end{table*}
+
+La corrida de este art\'iculo se hizo en un Apple M5 Pro (15 n\'ucleos,
+24~GB de RAM, macOS 27.0.1) con Docker Desktop. El contenedor dispuso
+de 6 CPU y 7,7~GiB de RAM. Open vSwitch trabaja en userspace
+(\texttt{datapath netdev}).
 
 \section*{Agradecimientos}
 Los autores agradecen a la Universidad Nacional del Centro del Per\'u.

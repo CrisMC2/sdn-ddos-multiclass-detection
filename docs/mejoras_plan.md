@@ -3,7 +3,7 @@
 ## Ya listo
 
 1. Documento formal para el encargado: `docs/documento_encargado.md` / `.docx`.
-2. Detector ML sobre simulación (F1 macro ≈ 0,986 en Agrarias).
+2. Detector ML sobre simulación (F1 macro 0,979 en Agrarias).
 3. Pipeline híbrido: Wireshark → anonimizar → mezclar con ataques simulados → informe.
 4. Artículo borrador con tabla de resultados (`paper/main_es.tex`).
 

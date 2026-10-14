@@ -37,6 +37,6 @@ Ya está en el repo.
 
 ## Estado del contenido
 
-- Abstract, descripción, impacto, tabla ML (F1 0,986) y limitaciones: **completos**.
+- Abstract, descripción, impacto, tabla ML (F1 0,979) y limitaciones: **completos**.
 - Pipeline Wireshark / híbrido: descrito en el texto; el informe híbrido aparece cuando haya pcap en `data/real/wireshark/`.
 - Pendiente humano: URL del repositorio (C2) al publicar.

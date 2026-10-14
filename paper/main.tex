@@ -57,8 +57,8 @@ forest trained without IP addresses and tested on the Ciencias
 Agrarias laboratory, which was held out of training, reaches a macro
 F1 of \Fmacro.
 \input{frase_en.tex}
-ICMP is not claimed as a settled class: that test contains only two
-flows.
+ICMP is not claimed as a settled class: the Agrarias test contains
+24 flows.
 \end{abstract}
 
 \begin{keywords}
@@ -89,7 +89,7 @@ C3 & Permanent link to Reproducible Capsule & -- \\
 C4 & Legal Code License & MIT \\
 C5 & Code versioning system used & git \\
 C6 & Software code languages, tools, and services used & Python, Bash, Mininet, Open vSwitch, Ryu, CICFlowMeter, Docker \\
-C7 & Compilation requirements, operating environments \& dependencies & WSL2/Ubuntu 24.04 o Docker; Python 3.9 (Ryu) y Python 3.12 (CICFlowMeter); ver \texttt{README.md} \\
+C7 & Compilation requirements, operating environments \& dependencies & Docker, Ubuntu 24.04; Python 3.9.25 and 3.12.3 \\
 C8 & Link to developer documentation/manual & Ver \texttt{README.md} del repositorio \\
 C9 & Support email for questions & cristhianmartinezcasas@gmail.com \\
 \bottomrule
@@ -230,10 +230,10 @@ protocol for the network officer is documented in
 \subsection{Limitations and future improvements}
 The table is still computed from emulated students. The hybrid
 dataset (Wireshark plus simulated attack) is ready in the code and is
-updated when the authorized pcaps arrive. The baseline probe lasts
-30~s and the attack probes last 120~s; the comparison uses rates.
-ICMP has on the order of ten flows in the whole set and two in the
-test, so it is not reported as a settled class. The classifier does
+updated when the authorized pcaps arrive. Every scenario in this
+run lasts 120~s. ICMP accounts for 120 flows in the whole set and 24
+in the Agrarias test, so its perfect F1 is not reported as a settled
+class result. The classifier does
 not run inside Ryu; it scores flows that have already been captured.
 Future work: repeat the test with the Wireshark background, a mixed
 four-vector scenario, and more ICMP samples.
@@ -244,21 +244,34 @@ evaluation in this article possible.
 
 \section{Software and hardware requirements}\label{sec:requirements}
 
+The testbed runs in an Ubuntu 24.04 container. The versions in the
+table were read inside the \texttt{ataque-sdn} image. The model was
+trained with Python 3.12.3, scikit-learn 1.9.1 and pandas 3.0.6.
+Ryu uses Python 3.9.25.
+
 \begin{table*}[t]
 \small
 \caption{Testbed setup requirements.}\label{tbl:testbed}
-\begin{tabular*}{\textwidth}{@{}p{1cm}LLp{2cm}@{}}
+\begin{tabular*}{\textwidth}{@{}p{1cm}LLp{3.2cm}@{}}
 \toprule
 N.\textsuperscript{o} & Description & Tool & Version \\
 \midrule
-1 & Network emulator & Mininet & Ubuntu 24.04 \\
-2 & SDN controller & Ryu & 4.34 \\
-3 & SYN / ICMP flood & hping3 & Ubuntu 24.04 \\
-4 & Low-rate attack & slowhttptest & Ubuntu 24.04 \\
-5 & pcap a CSV & CICFlowMeter & 0.5.0 \\
+1 & Network emulator & Mininet & 2.3.0 \\
+2 & Virtual switch & Open vSwitch & 3.3.9 \\
+3 & SDN controller & Ryu & 4.34 \\
+4 & SYN and ICMP flood & hping3 & 3.0.0-alpha-2 \\
+5 & Low-rate attack & slowhttptest & 1.9.0 \\
+6 & Packet capture & tcpdump & 4.99.4 \\
+7 & pcap to CSV & CICFlowMeter & 0.5.0 \\
+8 & Container OS & Ubuntu & 24.04 \\
 \bottomrule
 \end{tabular*}
 \end{table*}
+
+The run reported here used an Apple M5 Pro host (15 cores, 24~GB of
+RAM, macOS 27.0.1) with Docker Desktop. The container was given 6
+CPUs and 7.7~GiB of RAM. Open vSwitch runs in userspace
+(\texttt{datapath netdev}).
 
 \section*{Acknowledgements}
 The authors thank the Universidad Nacional del Centro del Per\'u.

@@ -125,7 +125,7 @@ Con los datos ya capturados en el campus emulado (sin pcap Wireshark aún en el 
 - Modelo: bosque aleatorio, clases equilibradas.
 - Entrena: laboratorios Salud, Ingenierías, Administración, Sociales.
 - Prueba: Ciencias Agrarias (laboratorio no visto).
-- **F1 macro: 0,986**.
+- **F1 macro: 0,979**.
 - `BENIGN`, `httpflood`, `slowloris` y `synflood` se separan bien.
 - `icmpflood` **no se afirma**: hay muy pocos flujos en la prueba.
 - En la sonda del portal: Slowloris deja de abrir la página; HTTP flood la ralentiza; SYN/ICMP suben paquetes y la página puede seguir respondiendo.

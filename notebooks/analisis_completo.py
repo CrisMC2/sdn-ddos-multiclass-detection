@@ -269,7 +269,7 @@ def write_paper_bits(filas, macro):
         "\\small",
         "\\caption{Detecci\\'on (bosque aleatorio). F1 macro \\FmacroEs.}",
         "\\label{tbl:deteccion}",
-        "\\begin{tabular}{lrrrrl}",
+        "\\begin{tabular}{lrrrrp{2.6cm}}",
         "\\hline",
         "Clase & Prec. & Recall & F1 & Flujos & En el flujo \\\\",
         "\\hline",
