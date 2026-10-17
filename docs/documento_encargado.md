@@ -112,7 +112,7 @@ El ataque (`hping3`, `slowhttptest`, HTTP flood) corre **dentro** del contenedor
 
 | Entregable | Ubicación / forma |
 |------------|-------------------|
-| Este protocolo | `docs/documento_encargado.md` y versión `.docx` |
+| Este protocolo | `docs/documento_encargado.md` y `docs/protocolo_encargado.pdf` |
 | Código del banco de pruebas | repositorio del proyecto Campus-DDoS-SDN |
 | Informe de detección (simulación) | `notebooks/resultados/informe.txt` |
 | Informe híbrido (real + ataque) | `notebooks/resultados/informe_hibrido.txt` (tras procesar los pcap) |

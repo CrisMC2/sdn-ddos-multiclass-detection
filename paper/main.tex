@@ -10,6 +10,7 @@
 \usepackage[numbers]{natbib}
 \usepackage{booktabs}
 \usepackage{enumitem}
+\usepackage{graphicx}
 
 \begin{document}
 
@@ -182,6 +183,21 @@ The main contributions of this work are:
         simulation-only attacks.
 \end{enumerate}
 
+\section{Research design}\label{sec:research}
+
+\subsection{Problem, objective and working hypothesis}
+High accuracy on one attack type and separated captures does not show
+that a detector can recognize malicious traffic while legitimate
+users continue using the same service. Live internet browsing also
+changes between runs. The objective is therefore to implement and
+evaluate a reproducible Docker testbed that mixes benign traffic and
+four attacks against one portal, measures service impact, and tests a
+model on a laboratory excluded from training. The working hypothesis
+is that flow size, duration and rate features, without IP addresses,
+ports or time, can yield a macro F1 above 0.90 on that held-out
+laboratory. This hypothesis is first tested at home; validation with
+authorized real UNCP traffic is the proposed next phase.
+
 \section{Software description}\label{sec:description}
 
 \subsection{Architecture overview}
@@ -192,6 +208,14 @@ vSwitch in userspace, controlled by Ryu. Students keep requesting
 portal pages during an attack. The operator's browser, at
 \texttt{http://127.0.0.1:8080/}, joins as one more benign client
 (\texttt{10.9.0.1}). The attack does not leave the container.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/topologia-campus-uncp.png}
+\caption{Emulated topology. The C2 remains outside the campus;
+compromised hosts attack the portal while students keep browsing.}
+\label{fig:topologia}
+\end{figure*}
 
 \subsection{Software functionalities}
 \texttt{scripts/docker/run\_scenario.sh} runs one scenario
@@ -208,7 +232,55 @@ student Wireshark captures, mixes them with simulation attacks, and
 writes \texttt{notebooks/resultados/informe\_hibrido.txt}. The attack
 is never run against the real campus network.
 
-\section{Impact overview}\label{sec:impact}
+\subsection{Experimental design and variables}
+Five independent scenarios are run: one baseline and four attacks.
+Each lasts 120~s, starts from a clean topology and uses 20 students,
+10 compromised hosts, one portal, one C2, one modem and seven
+switches. The scenario is the independent variable. Responses are
+HTTP availability, mean and 95th-percentile latency, packets per
+second at the portal, maximum core flows, and container CPU, memory
+and network use. The model receives bidirectional flow statistics
+from CICFlowMeter and the ICMP aggregator.
+
+\subsection{From pcap to the model}
+The run in this article comes from one command,
+\texttt{run\_scenario.sh all 120}. Inside the container, Open
+vSwitch, Ryu and the topology start together. Each scenario lasts
+120~s and leaves three artifacts: the pcap on the portal interface,
+the student probe (HTTP status, latency, packets per second), and
+container use sampled with \texttt{docker stats}.
+
+\texttt{pcap\_to\_csv.py} splits each pcap in two. TCP and UDP go
+through CICFlowMeter. ICMP is outside that filter, so a custom
+aggregator closes a flow after 10~s. Without that cut, each
+compromised host would leave one long flow and the class would
+collapse to a handful of rows. The label does not come from the file
+name. The JSON beside the pcap lists the compromised addresses. If
+the source is one of those addresses and the scenario is not the
+baseline, the flow takes the attack name. Students, the portal and
+the whole baseline stay \texttt{BENIGN}. This run has 40{,}877 flows.
+The baseline contributes 2{,}671, all benign. During an attack the
+student flows stay inside the same CSV.
+
+Before training, source IP, destination IP, both ports and the
+timestamp are dropped. An infinity or a missing value becomes zero,
+and any column that does not vary in the training set is removed. If
+the IP stayed, the forest would memorize which machine is compromised
+rather than how the flow behaves. The model is a forest of 200 trees
+with class weights, because the SYN flood contributes 23{,}539 flows
+and would otherwise dominate. The split is not random: Salud,
+Ingenier\'ias, Empresariales and Sociales train it (32{,}784 flows)
+and only Agrarias is tested (8{,}091).
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/metodologia-ddos-uncp.png}
+\caption{Experimental pipeline from the emulated campus to the model.
+The label comes from the sender, not the capture file.}
+\label{fig:method}
+\end{figure*}
+
+\section{Results and impact overview}\label{sec:impact}
 The single-vector reference dataset cannot be repeated, because its
 benign traffic comes from the live internet
 \citep{kumar2026icmpfloodsdn}. This testbed can be repeated, mixes
@@ -217,15 +289,78 @@ classifier. On Ciencias Agrarias, a laboratory excluded from
 training, macro F1 is \Fmacro. The probe states what the page feels,
 not only which label was assigned. With institutional authorization,
 the same pipeline admits real benign traffic (Wireshark) while keeping
-the attack inside the container.
+the attack inside the container. The probe from that run is in
+Table~\ref{tbl:sonda}: only Slowloris takes the portal down.
 
+\subsection{Dataset composition}
+The five CSVs contain 40{,}877 flows: 9{,}400 \texttt{BENIGN},
+23{,}539 \texttt{synflood}, 7{,}188 \texttt{httpflood}, 630
+\texttt{slowloris} and 120 \texttt{icmpflood}. This distribution
+motivates class weighting and the decision not to claim ICMP as a
+settled class. Fig.~\ref{fig:flows} also shows that attack captures
+retain benign student flows.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{../expo/img/flujos.png}
+\caption{Benign and attack flows obtained in every scenario.}
+\label{fig:flows}
+\end{figure}
+
+\subsection{Portal impact}
+\input{tabla_sonda_en.tex}
+
+SYN produces the highest rate, 466 packets/s, yet the probe keeps 120
+HTTP 200 responses. HTTP flood raises mean latency from 407 to
+564~ms. Slowloris produces only 86 packets/s but occupies available
+connections and fails 117 of 118 probes. Packet rate alone therefore
+does not describe application impact.
+
+\subsection{Classifier performance}
 \input{tabla_resultados_en.tex}
+
+Macro F1 on Agrarias is \Fmacro and binary benign-versus-attack F1 is
+0.970. The most important features are forward average segment size,
+forward packet-length mean and maximum, forward bytes and packet-size
+variability. This is consistent with the scenarios: SYN repeatedly
+sends small segments, HTTP exchanges complete requests and responses,
+and Slowloris holds connections with little traffic.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{../expo/img/importancia.png}
+\caption{Eight most important random-forest features.}
+\label{fig:importance}
+\end{figure}
+
+\subsection{Testbed consumption}
+Mean container CPU was 23\% for baseline, 26\% for SYN, 50\% for
+HTTP, 523\% for Slowloris and 26\% for ICMP; in Docker, 100\%
+corresponds approximately to one core. Slowloris occupied about five
+of the six assigned cores, while observed peak memory remained below
+200~MiB. These values cover the whole testbed, not only the victim.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{../expo/img/cpu-docker.png}
+\caption{Mean container CPU by scenario.}
+\label{fig:cpu}
+\end{figure}
+
+\subsection{Discussion}
+The home test supports the working hypothesis for four defensible
+classes: macro F1 exceeds 0.90 without IP addresses and transfers to
+a held-out laboratory. It does not demonstrate real-network
+deployment or online detection. The contrast between SYN and
+Slowloris also shows why flow classification should be paired with a
+service probe: more packets do not necessarily mean lower service
+availability.
 
 \subsection{Ongoing research projects using the software}
 The testbed is used in the authors' undergraduate thesis at the
 Universidad Nacional del Centro del Per\'u. The Wireshark capture
 protocol for the network officer is documented in
-\texttt{docs/documento\_encargado.docx}.
+a separate document distributed with the software.
 
 \subsection{Limitations and future improvements}
 The table is still computed from emulated students. The hybrid
@@ -238,6 +373,18 @@ not run inside Ryu; it scores flows that have already been captured.
 Future work: repeat the test with the Wireshark background, a mixed
 four-vector scenario, and more ICMP samples.
 
+\subsection{Conclusions}
+The run already measured, taken at home inside Docker, is the base
+of the proposal. In that run the student and the attack share the
+capture, the model does not use IP addresses, and on Ciencias
+Agrarias the macro F1 is \Fmacro. Sender-based labels preserve benign
+traffic inside an attacked capture; a laboratory holdout is more
+demanding than a random row split; and availability, packet rate and
+classification describe different aspects of an incident. Only
+Slowloris takes the portal down. ICMP is not claimed. This base
+supports the request for authorized real benign traffic. The
+simulated attack does not leave the container.
+
 \subsection{List of scholarly publications enabled by this software}
 There is no other publication yet. This software is what makes the
 evaluation in this article possible.
@@ -249,10 +396,10 @@ table were read inside the \texttt{ataque-sdn} image. The model was
 trained with Python 3.12.3, scikit-learn 1.9.1 and pandas 3.0.6.
 Ryu uses Python 3.9.25.
 
-\begin{table*}[t]
-\small
+\begin{table}[t]
+\footnotesize
 \caption{Testbed setup requirements.}\label{tbl:testbed}
-\begin{tabular*}{\textwidth}{@{}p{1cm}LLp{3.2cm}@{}}
+\begin{tabular}{@{}p{0.5cm}p{2.3cm}p{1.7cm}p{1.6cm}@{}}
 \toprule
 N.\textsuperscript{o} & Description & Tool & Version \\
 \midrule
@@ -265,13 +412,13 @@ N.\textsuperscript{o} & Description & Tool & Version \\
 7 & pcap to CSV & CICFlowMeter & 0.5.0 \\
 8 & Container OS & Ubuntu & 24.04 \\
 \bottomrule
-\end{tabular*}
-\end{table*}
+\end{tabular}
+\end{table}
 
-The run reported here used an Apple M5 Pro host (15 cores, 24~GB of
-RAM, macOS 27.0.1) with Docker Desktop. The container was given 6
-CPUs and 7.7~GiB of RAM. Open vSwitch runs in userspace
-(\texttt{datapath netdev}).
+A conventional desktop is enough to repeat the run: 8 cores and
+16~GB of RAM. Docker Desktop runs on Windows 11 or Ubuntu. The
+container is given 6 CPUs and 8~GB, and Ubuntu 24.04 runs inside it.
+Open vSwitch runs in userspace (\texttt{datapath netdev}).
 
 \section*{Acknowledgements}
 The authors thank the Universidad Nacional del Centro del Per\'u.

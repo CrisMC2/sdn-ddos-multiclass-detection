@@ -185,7 +185,7 @@ PDFs ya compilados:
 - `paper/main_es.pdf` — artículo (español)
 - `paper/main.pdf` — artículo (inglés, Software Impacts)
 - `docs/protocolo_encargado.pdf` — protocolo corto para el encargado
-- `docs/documento_encargado.docx` — versión larga
+- `docs/documento_encargado.md` — versión larga y editable
 
 Para recompilar: `bash paper/compilar.sh both`
 

@@ -11,8 +11,9 @@
 | `tabla_resultados_en.tex` | inglés | Misma tabla |
 | `frase_es.tex` / `frase_en.tex` | abstract | Efecto en el portal |
 | `references.bib` | ambos | Bibliografía |
-| `../docs/protocolo_encargado.tex` | Encargado de redes | Protocolo Wireshark (también `.docx`) |
-| `../docs/documento_encargado.docx` | Encargado | Versión larga para enviar |
+| `../docs/protocolo_encargado.tex` | Encargado de redes | Fuente del protocolo Wireshark |
+| `../docs/protocolo_encargado.pdf` | Encargado de redes | Protocolo listo para enviar |
+| `../docs/documento_encargado.md` | Equipo | Versión larga y editable |
 
 Los PDF `main_es.pdf` y `main.pdf` se regeneran al compilar. Si están viejos, vuelve a compilar.
 

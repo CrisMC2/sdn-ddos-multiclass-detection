@@ -21,6 +21,9 @@ __pycache__/
 *.pyc
 .venv/
 
+# Node, solo para generar la exposición
+node_modules/
+
 # Editor / OS
 .DS_Store
 Thumbs.db
