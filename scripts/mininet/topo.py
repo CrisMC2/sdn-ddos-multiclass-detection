@@ -40,17 +40,46 @@ from roles import (
 )
 
 
-class UserspaceOVSSwitch(OVSSwitch):
-    """OVS en userspace. Dentro de Docker/WSL no hay modulo de kernel."""
+def use_kernel_dp():
+    """Elige el datapath de OVS.
+
+    El datapath de kernel ('system') aguanta trafico sostenido (p.ej. un
+    flood ICMP) sin congelarse; el de userspace ('netdev') es el que se
+    atasca en Docker/WSL. Se usa kernel si el modulo esta cargado. Forzar
+    con OVS_DATAPATH=kernel | user.
+    """
+    mode = os.environ.get('OVS_DATAPATH', 'auto').strip().lower()
+    if mode in ('kernel', 'system'):
+        return True
+    if mode in ('user', 'userspace', 'netdev'):
+        return False
+    return os.path.isdir('/sys/module/openvswitch')  # auto
+
+
+class CampusOVSSwitch(OVSSwitch):
+    """OVS con datapath de kernel si esta disponible, si no userspace.
+
+    El userspace ('netdev') se usaba porque se asumia que en Docker/WSL no
+    hay modulo de kernel, pero es el que se atasca con floods sostenidos
+    (el contador de un flujo ICMP se congela a los ~8 s). Si el modulo
+    openvswitch esta cargado, el datapath de kernel no tiene ese problema.
+    """
 
     def __init__(self, *args, **kwargs):
-        kwargs['datapath'] = 'user'
         kwargs.setdefault('protocols', 'OpenFlow13')
-        super(UserspaceOVSSwitch, self).__init__(*args, **kwargs)
+        self.kernel_dp = use_kernel_dp()
+        if not self.kernel_dp:
+            kwargs['datapath'] = 'user'
+        super(CampusOVSSwitch, self).__init__(*args, **kwargs)
 
     def start(self, controllers):
-        super(UserspaceOVSSwitch, self).start(controllers)
-        self.cmd('ovs-vsctl set bridge %s datapath_type=netdev' % self.name)
+        super(CampusOVSSwitch, self).start(controllers)
+        if not self.kernel_dp:
+            self.cmd('ovs-vsctl set bridge %s datapath_type=netdev' % self.name)
+
+
+# Alias para compatibilidad con cualquier import viejo.
+UserspaceOVSSwitch = CampusOVSSwitch
 
 
 def _offload_off(host):
@@ -76,11 +105,12 @@ def _campus_net(host, ip):
 def build():
     net = Mininet(
         controller=RemoteController,
-        switch=UserspaceOVSSwitch,
+        switch=CampusOVSSwitch,
         link=TCLink,
         autoSetMacs=True,
     )
 
+    info('*** Datapath OVS: %s\n' % ('kernel (system)' if use_kernel_dp() else 'userspace (netdev)'))
     info('*** Controlador Ryu en 127.0.0.1:6653\n')
     c0 = net.addController('c0', controller=RemoteController, ip='127.0.0.1', port=6653)
 
