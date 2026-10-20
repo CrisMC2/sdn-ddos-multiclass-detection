@@ -48,6 +48,14 @@ from topo import build
 PROBE = 'salud-u1'
 
 
+def _skip_pcap():
+    """SKIP_PCAP=1 salta tcpdump y el particionado del pcap. El dataset POR
+    VENTANA (metricas + telemetria SDN) no depende del pcap, asi que la corrida
+    termina mucho antes, sobre todo en synflood. El dataset POR FLUJO
+    (CICFlowMeter) si lo necesita; no actives SKIP_PCAP si lo quieres."""
+    return os.environ.get('SKIP_PCAP', '').strip().lower() not in ('', '0', 'false', 'no')
+
+
 def _write_script(path, body):
     with open(path, 'w') as fh:
         fh.write(body)
@@ -214,6 +222,7 @@ def main():
     info('    alumnos=%d infectados=%d portal=%s\n' % (
         len(meta['students']), len(meta['bots']), VICTIM_IP))
 
+    skip_pcap = _skip_pcap()
     net = None
     try:
         net = build()
@@ -223,7 +232,6 @@ def main():
         _install_scripts(VICTIM_IP)
         time.sleep(1)
 
-        skip_pcap = _skip_pcap()
         if skip_pcap:
             info('*** SKIP_PCAP: sin captura de pcap (solo metricas + SDN, mas rapido)\n')
         else:
@@ -351,7 +359,9 @@ def main():
             time.sleep(1)
             stop_benign()
             net.stop()
-        if os.path.isfile(tmp_out):
+        if skip_pcap:
+            info('*** SKIP_PCAP: sin pcap ni particionado (dataset por ventana)\n')
+        elif os.path.isfile(tmp_out):
             shutil.copyfile(tmp_out, out)
             os.remove(tmp_out)
             info('*** Pcap: %s\n' % out)
