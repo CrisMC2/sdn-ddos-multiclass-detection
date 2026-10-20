@@ -1,4 +1,0 @@
-Comparacion
-
-Simulacion sola: F1 macro 0.979
-Hibrido: pendiente (sin pcap Wireshark).

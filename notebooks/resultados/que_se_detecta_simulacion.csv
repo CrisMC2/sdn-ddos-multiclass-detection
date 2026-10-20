@@ -1,6 +1,0 @@
-clase,precision,recall,f1-score,support,en_el_flujo,en_la_pagina
-BENIGN,0.9557572319909245,0.9492957746478873,0.9525155455059355,1775.0,se distingue bien,es el trafico de referencia
-httpflood,0.9387755102040817,0.9465020576131687,0.9426229508196722,1458.0,se distingue bien,la pagina tarda mas; suben los paquetes al portal
-icmpflood,1.0,1.0,1.0,24.0,hay muy pocos flujos para afirmarlo,suben los paquetes al portal
-slowloris,1.0,1.0,1.0,126.0,se distingue bien,la pagina deja de abrir
-synflood,1.0,1.0,1.0,4708.0,se distingue bien,suben los paquetes al portal

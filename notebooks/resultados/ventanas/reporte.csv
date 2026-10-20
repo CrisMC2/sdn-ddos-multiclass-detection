@@ -1,9 +1,0 @@
-,precision,recall,f1-score,support
-BENIGN,1.0,1.0,1.0,36.0
-httpflood,1.0,1.0,1.0,36.0
-icmpflood,1.0,1.0,1.0,36.0
-slowloris,1.0,1.0,1.0,36.0
-synflood,1.0,1.0,1.0,36.0
-accuracy,1.0,1.0,1.0,1.0
-macro avg,1.0,1.0,1.0,180.0
-weighted avg,1.0,1.0,1.0,180.0

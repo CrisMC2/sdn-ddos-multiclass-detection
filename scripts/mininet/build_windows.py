@@ -48,11 +48,25 @@ DERIVED_FIELDS = [
 ]
 
 # Features de la vista SDN del controlador (0 si no hay _sdn.csv).
+# Las *_icmp / *_tcp son la clave para separar icmpflood de synflood: el
+# protocolo solo se ve en la telemetria del controlador, no en los
+# contadores del portal (que ven igual los dos floods).
 SDN_FIELDS = [
     'sdn_flows_total', 'sdn_src_total', 'sdn_delta_pkts', 'sdn_delta_bytes',
     'sdn_src_entropy', 'sdn_src_entropy_norm', 'sdn_max_src_share',
     'sdn_mean_pkts_per_flow',
+    'sdn_pkts_icmp', 'sdn_pkts_tcp', 'sdn_frac_icmp', 'sdn_frac_tcp',
+    # Suavizado (rolling max de los ultimos SDN_ROLL s): el controlador
+    # muestrea cada ~2 s, asi que la senal de protocolo sale a rafagas y
+    # queda en 0 en la mayoria de las ventanas. El rolling max la hace
+    # persistir mientras dura el episodio, que es lo que importa para
+    # detectar. Es memoria corta (no mira todo el escenario), asi que
+    # sigue siendo defendible como deteccion en linea.
+    'sdn_pkts_icmp_roll', 'sdn_frac_icmp_roll',
 ]
+
+# Ventana (en segundos) del rolling max de la senal de protocolo.
+SDN_ROLL = 10
 
 FEATURE_FIELDS = PROBE_FIELDS + DERIVED_FIELDS + SDN_FIELDS
 ALL_FIELDS = REF_FIELDS + FEATURE_FIELDS + ['Label']
@@ -104,6 +118,7 @@ def sdn_snapshots(path):
                 cur[key] = (pkts, nbytes)
 
         per_src = {}
+        per_proto = {}           # proto (int) -> paquetes del intervalo
         delta_pkts_total = 0.0
         delta_bytes_total = 0.0
         for key, (pkts, nbytes) in cur.items():
@@ -111,10 +126,19 @@ def sdn_snapshots(path):
             d_bytes = max(0.0, nbytes - prev_cum_bytes.get(key, 0.0))
             src = key[0]
             per_src[src] = per_src.get(src, 0.0) + d_pkts
+            try:
+                proto = int(float(key[2]))
+            except (TypeError, ValueError):
+                proto = -1
+            per_proto[proto] = per_proto.get(proto, 0.0) + d_pkts
             delta_pkts_total += d_pkts
             delta_bytes_total += d_bytes
-        prev_cum = {k: v[0] for k, v in cur.items()}
-        prev_cum_bytes = {k: v[1] for k, v in cur.items()}
+        # No reemplazar: conservar el acumulado por flujo. Si un flujo falta en
+        # un muestreo y reaparece, el delta se calcula contra su ultimo valor
+        # real (no contra 0), evitando el pico falso al reaparecer.
+        for k, v in cur.items():
+            prev_cum[k] = v[0]
+            prev_cum_bytes[k] = v[1]
 
         entropy = 0.0
         max_share = 0.0
@@ -128,6 +152,11 @@ def sdn_snapshots(path):
         entropy_norm = entropy / math.log2(n_src) if n_src > 1 else 0.0
         n_flows = len(cur)
 
+        pkts_icmp = per_proto.get(1, 0.0)   # proto 1 = ICMP
+        pkts_tcp = per_proto.get(6, 0.0)    # proto 6 = TCP
+        frac_icmp = pkts_icmp / delta_pkts_total if delta_pkts_total > 0 else 0.0
+        frac_tcp = pkts_tcp / delta_pkts_total if delta_pkts_total > 0 else 0.0
+
         snapshots[ts] = {
             'sdn_flows_total': n_flows,
             'sdn_src_total': n_src,
@@ -137,6 +166,10 @@ def sdn_snapshots(path):
             'sdn_src_entropy_norm': round(entropy_norm, 4),
             'sdn_max_src_share': round(max_share, 4),
             'sdn_mean_pkts_per_flow': round(delta_pkts_total / n_flows, 1) if n_flows else 0.0,
+            'sdn_pkts_icmp': round(pkts_icmp, 1),
+            'sdn_pkts_tcp': round(pkts_tcp, 1),
+            'sdn_frac_icmp': round(frac_icmp, 4),
+            'sdn_frac_tcp': round(frac_tcp, 4),
         }
     return snapshots
 
@@ -171,6 +204,8 @@ def build_run(run_name, base, run_id):
     out = []
     pps_history = []
     conns_history = []
+    icmp_pkts_history = []
+    icmp_frac_history = []
     prev_core = None
     prev_pps = None
     for row in interno:
@@ -205,6 +240,11 @@ def build_run(run_name, base, run_id):
             'Label': label,
         }
         record.update(sdn_for(ts, snapshots, sorted_ts))
+        # Suavizado de la senal de protocolo (rolling max de SDN_ROLL s).
+        icmp_pkts_history.append(record.get('sdn_pkts_icmp', 0.0))
+        icmp_frac_history.append(record.get('sdn_frac_icmp', 0.0))
+        record['sdn_pkts_icmp_roll'] = round(max(icmp_pkts_history[-SDN_ROLL:]), 1)
+        record['sdn_frac_icmp_roll'] = round(max(icmp_frac_history[-SDN_ROLL:]), 4)
         out.append(record)
         prev_core = core
         prev_pps = rx_pps

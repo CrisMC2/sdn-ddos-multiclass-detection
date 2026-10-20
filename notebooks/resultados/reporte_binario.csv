@@ -1,6 +1,0 @@
-,precision,recall,f1-score,support
-ATAQUE,0.99,0.993,0.991,6290.0
-BENIGN,0.973,0.965,0.969,1779.0
-accuracy,0.986,0.986,0.986,0.986
-macro avg,0.982,0.979,0.98,8069.0
-weighted avg,0.986,0.986,0.986,8069.0

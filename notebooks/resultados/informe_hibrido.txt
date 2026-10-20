@@ -1,3 +1,0 @@
-Aun no hay dataset hibrido.
-Copia los pcap Wireshark a data/real/wireshark/ y corre:
-  bash scripts/docker/preparar_hibrido.sh

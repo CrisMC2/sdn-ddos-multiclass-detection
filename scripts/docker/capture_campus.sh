@@ -22,7 +22,7 @@ else
   RUN_NAME="${SCENARIO}"
 fi
 export SDN_FLOWS_CSV="${DATA_DIR}/metrics/${RUN_NAME}_sdn.csv"
-export SDN_POLL_INTERVAL="${SDN_POLL_INTERVAL:-2}"
+export SDN_POLL_INTERVAL="${SDN_POLL_INTERVAL:-1}"
 mkdir -p "${DATA_DIR}/metrics"
 
 echo "*** Arrancando Ryu (flow_monitor_13, con telemetria SDN)"

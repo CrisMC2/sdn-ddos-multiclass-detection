@@ -95,6 +95,12 @@ docker build -t ataque-sdn -f scripts/docker/Dockerfile .
 - **Open vSwitch userspace es frágil**: no subir las intensidades a niveles
   de un ataque real de gigabits; el emulador se cae antes. Los rangos de
   `repeat` están elegidos para ser estables.
+- **Floods robustos**: SYN e ICMP corren en un bucle con `timeout` que
+  relanza el generador cada 5 s (`/tmp/synfloodloop.sh`,
+  `/tmp/icmpfloodloop.sh`). SYN usa `hping3`; **ICMP usa `ping` del kernel**,
+  no `hping3`: hping3 `--icmp` en OVS userspace manda la ráfaga inicial y su
+  socket raw se congela a los ~9 s (el contador del flujo ICMP se plantaba);
+  `ping` sostiene el ritmo toda la corrida.
 - **Ryu corre en Python 3.9** (venv `/opt/ryu-venv`), separado del Python
   3.12 del resto. `flow_monitor_13.py` solo importa `ryu`/stdlib.
 - **No inventar resultados**: los números del paper (`\Fmacro`, tablas) salen
@@ -106,7 +112,7 @@ docker build -t ataque-sdn -f scripts/docker/Dockerfile .
 ```
 data/raw/<run>.pcap, <run>.meta.json
 data/metrics/<run>_interno.csv      sonda del alumno + contadores del portal (por segundo)
-data/metrics/<run>_sdn.csv          telemetría OpenFlow del controlador (cada ~2 s)
+data/metrics/<run>_sdn.csv          telemetría OpenFlow del controlador (cada ~1 s, SDN_POLL_INTERVAL)
 data/metrics/<run>_docker.csv       CPU/mem/red del contenedor
 data/metrics/resumen.csv            una fila por corrida (impacto en el portal)
 data/processed/<run>.csv            flujos etiquetados + columnas sdn_*

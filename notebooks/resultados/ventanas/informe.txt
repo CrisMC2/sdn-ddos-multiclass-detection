@@ -1,37 +1,33 @@
 Detector por ventana de tiempo
 
-Particion: particion temporal 70/30 (1 corrida)  (1 fold)
-Ventanas: 598  |  features: 20 (red 12, sdn 8)
-
-AVISO: las columnas sdn_* estan en 0 (datos del controlador
-viejo). Recaptura con flow_monitor_13 para la ablacion de SDN.
+Particion: leave-one-run-out (5 corridas)  (5 folds)
+Ventanas: 1495  |  features: 26 (red 12, sdn 14)
 
 == Comparacion de modelos (todas las features) ==
 Modelo                 F1 macro        F1 binario
-bosque                 1.000 +/- 0.000   1.000 +/- 0.000
-gradient_boosting      1.000 +/- 0.000   1.000 +/- 0.000
-regresion_logistica    0.994 +/- 0.000   1.000 +/- 0.000
+bosque                 0.811 +/- 0.055   1.000 +/- 0.000
+gradient_boosting      0.793 +/- 0.083   1.000 +/- 0.000
+regresion_logistica    0.991 +/- 0.006   0.998 +/- 0.003
 
 == Ablacion de features (bosque aleatorio) ==
 Grupo        F1 macro        aporta
-red          1.000 +/- 0.000
-sdn          nan +/- nan
-todas        1.000 +/- 0.000
+red          0.807 +/- 0.101
+sdn          0.805 +/- 0.016
+todas        0.811 +/- 0.055
 
-Aporte del SDN (todas - red): +0.000 de F1 macro.
-  (0 esperado mientras sdn_* esten en 0)
+Aporte del SDN (todas - red): +0.004 de F1 macro.
 
 == Detalle (bosque aleatorio, todas las features) ==
-F1 macro:   1.000 +/- 0.000
+F1 macro:   0.811 +/- 0.055
 F1 binario: 1.000 +/- 0.000
 Falsos positivos en benigno: 0.0% +/- 0.0%
 
 Recall por clase (media entre folds):
   BENIGN      1.000 +/- 0.000
-  httpflood   1.000 +/- 0.000
-  icmpflood   1.000 +/- 0.000
-  slowloris   1.000 +/- 0.000
-  synflood    1.000 +/- 0.000
+  httpflood   0.993 +/- 0.008
+  icmpflood   0.743 +/- 0.345
+  slowloris   0.997 +/- 0.007
+  synflood    0.487 +/- 0.426
 
 Tiempo hasta la primera alarma (media entre folds, s):
   httpflood   0.0 +/- 0.0
@@ -40,17 +36,17 @@ Tiempo hasta la primera alarma (media entre folds, s):
   synflood    0.0 +/- 0.0
 
 Columnas que mas pesan (bosque sobre todo el dataset):
-  0.159  server_rx_pps
-  0.156  server_rx_bps
-  0.141  conns_roll3
-  0.139  core_flows
-  0.121  rx_pps_roll3
-  0.110  server_conns
-  0.090  http_ok
-  0.079  probe_latency_ms
+  0.132  rx_pps_roll3
+  0.106  conns_roll3
+  0.103  server_rx_pps
+  0.101  server_conns
+  0.093  core_flows
+  0.083  server_rx_bps
+  0.068  http_ok
+  0.044  sdn_pkts_tcp
 
 Lectura honesta
-  F1 macro = 1.000 +/- 0.000 sobre 1 fold.
+  F1 macro = 0.811 +/- 0.055 sobre 5 folds.
   Con 1 sola corrida la desviacion es 0 y el numero es optimista:
   repite varias (run_scenario.sh repeat N) para que sea defendible.
   La ablacion dice cuanto aporta el SDN frente a usar solo la red.
