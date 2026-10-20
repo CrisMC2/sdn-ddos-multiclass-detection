@@ -142,7 +142,11 @@ flujos OpenFlow). El entorno completo, incluyendo los generadores de
 tr\'afico, el portal web propio y el pipeline de etiquetado, se
 empaqueta como una imagen Docker para eliminar cualquier dependencia
 de una conexi\'on a internet en vivo o de un sistema operativo de
-host espec\'ifico.
+host espec\'ifico. El banco de pruebas incluye dos pipelines de
+detecci\'on complementarios: uno por flujo individual, basado en
+caracter\'isticas CICFlowMeter, y uno por ventana de tiempo, que
+agrega m\'etricas del portal y telemetr\'ia OpenFlow por segundo para
+permitir la detecci\'on temprana del ataque.
 
 Los principales aportes de este trabajo son:
 \begin{enumerate}[label=\roman*.]
@@ -164,11 +168,27 @@ Los principales aportes de este trabajo son:
         vivo, resolviendo la limitaci\'on de reproducibilidad de los
         datasets SDN basados en tr\'afico real.
   \item Un clasificador de bosque aleatorio, entrenado sin usar la
-        IP, que en el laboratorio de Ciencias Agrarias (excluido del
-        entrenamiento) alcanza un F1 macro de \FmacroEs, junto con un
-        pipeline preparado para mezclar capturas Wireshark de
-        tr\'afico benigno de estudiantes (autorizadas) con los ataques
-        solo simulados.
+        IP, junto con un pipeline preparado para mezclar capturas
+        Wireshark de tr\'afico benigno de estudiantes (autorizadas)
+        con los ataques solo simulados.
+  \item Telemetr\'ia del controlador OpenFlow exportada en cada
+        corrida por una aplicaci\'on Ryu propia: instala flujos por
+        IP de origen y sondea peri\'odicamente las estad\'isticas de
+        la tabla de flujos (paquetes, bytes, entradas activas), que
+        el pipeline une con las m\'etricas del portal por ventana de
+        tiempo. Esto aporta las se\~nales SDN espec\'ificas que los
+        datasets no-SDN reutilizados no tienen.
+  \item Un dataset por ventana de tiempo (una fila por segundo, con
+        contadores del portal y telemetr\'ia SDN agregada) y un
+        pipeline de detecci\'on temprana evaluado con validaci\'on
+        cruzada leave-one-run-out sobre cinco corridas independientes.
+        El bosque aleatorio obtiene F1 macro = 0{,}811~$\pm$~0{,}055
+        y F1 binario = 1{,}000~$\pm$~0{,}000 (sin falsos positivos).
+        Una ablaci\'on de grupos de caracter\'isticas muestra que la
+        telemetr\'ia SDN aporta apenas $+$0{,}004 de F1 macro sobre
+        usar solo los contadores de red, lo que indica que el portal
+        por s\'i solo concentra la mayor parte de la se\~nal
+        discriminante.
 \end{enumerate}
 
 \section{Planteamiento de la investigaci\'on}\label{sec:research}
