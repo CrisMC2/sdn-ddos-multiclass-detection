@@ -21,7 +21,7 @@ import os
 from cicflowmeter.sniffer import create_sniffer
 from scapy.all import ICMP, IP, rdpcap
 
-from paths import processed_dir, raw_dir
+from paths import metrics_dir, processed_dir, raw_dir
 
 ICMP_IDLE_TIMEOUT = 5.0
 # Un flood ICMP continuo, si no se corta, es un solo flujo por PC.
@@ -33,6 +33,72 @@ ICMP_FIELDS = [
     'tot_fwd_pkts', 'tot_bwd_pkts', 'totlen_fwd_pkts', 'totlen_bwd_pkts',
 ]
 SRC_KEYS = ('src_ip', 'Src IP', 'srcip')
+
+# Columnas que aporta la vista SDN (controlador Ryu) a cada conexion.
+SDN_FIELDS = [
+    'sdn_flows', 'sdn_pkts', 'sdn_bytes', 'sdn_duration_s',
+    'sdn_pkts_s', 'sdn_bytes_s', 'sdn_avg_pkt_bytes',
+]
+SDN_EMPTY = {name: '' for name in SDN_FIELDS}
+
+
+def sdn_csv_path(scenario):
+    return os.path.join(metrics_dir(), '%s_sdn.csv' % scenario)
+
+
+def load_sdn(scenario):
+    """Agrega la telemetria OpenFlow por IP de origen, para el cruce.
+
+    El CSV trae una fila por flujo y por muestreo, con contadores que solo
+    crecen. Para cada flujo logico (src, dst, proto) se queda con el conteo
+    mayor (la ultima muestra) y, como el mismo flujo aparece en varios
+    switches, con el maximo entre ellos. Luego suma por IP de origen.
+    """
+    path = sdn_csv_path(scenario)
+    rows = read_dicts(path)
+    if not rows:
+        return {}
+
+    flows = {}
+    for row in rows:
+        src = row.get('src_ip')
+        if not src:
+            continue
+        key = (src, row.get('dst_ip', ''), row.get('proto', ''))
+        try:
+            pkts = int(float(row.get('packets') or 0))
+            nbytes = int(float(row.get('bytes') or 0))
+            dur = float(row.get('duration_s') or 0.0)
+        except ValueError:
+            continue
+        cur = flows.get(key)
+        if cur is None or pkts > cur['pkts']:
+            flows[key] = {'src': src, 'pkts': pkts, 'bytes': nbytes, 'dur': dur}
+
+    per_src = {}
+    for flow in flows.values():
+        acc = per_src.setdefault(flow['src'], {
+            'flows': 0, 'pkts': 0, 'bytes': 0, 'dur': 0.0,
+        })
+        acc['flows'] += 1
+        acc['pkts'] += flow['pkts']
+        acc['bytes'] += flow['bytes']
+        acc['dur'] = max(acc['dur'], flow['dur'])
+
+    features = {}
+    for src, acc in per_src.items():
+        dur = max(acc['dur'], 1e-6)
+        pkts = acc['pkts']
+        features[src] = {
+            'sdn_flows': acc['flows'],
+            'sdn_pkts': pkts,
+            'sdn_bytes': acc['bytes'],
+            'sdn_duration_s': '%.3f' % acc['dur'],
+            'sdn_pkts_s': '%.2f' % (pkts / dur),
+            'sdn_bytes_s': '%.2f' % (acc['bytes'] / dur),
+            'sdn_avg_pkt_bytes': '%.1f' % (acc['bytes'] / max(pkts, 1)),
+        }
+    return features
 
 
 def convert_tcp_udp(pcap_path, csv_path):
@@ -155,19 +221,23 @@ def read_dicts(path):
         return list(csv.DictReader(fh))
 
 
-def write_labeled(rows, out_path, meta, fallback):
+def write_labeled(rows, out_path, meta, fallback, sdn=None):
+    sdn = sdn or {}
     header = []
     for row in rows:
         for key in row:
-            if key not in header and key != 'Label':
+            if key not in header and key != 'Label' and key not in SDN_FIELDS:
                 header.append(key)
+    header.extend(SDN_FIELDS)
     header.append('Label')
     with open(out_path, 'w', newline='') as fh:
         writer = csv.DictWriter(fh, fieldnames=header, extrasaction='ignore')
         writer.writeheader()
         for row in rows:
             item = dict(row)
-            item['Label'] = label_for(src_of(row), meta, fallback)
+            src = src_of(row)
+            item.update(sdn.get(src, SDN_EMPTY))
+            item['Label'] = label_for(src, meta, fallback)
             writer.writerow(item)
     return max(len(rows), 0)
 
@@ -187,7 +257,8 @@ def convert_one(pcap_path, raw, out_dir):
     fallback = fallback_label(pcap_path, raw)
     meta = load_meta(pcap_path)
     label_name = (meta or {}).get('scenario') or fallback
-    csv_path = os.path.join(out_dir, os.path.splitext(os.path.basename(pcap_path))[0] + '.csv')
+    base = os.path.splitext(os.path.basename(pcap_path))[0]
+    csv_path = os.path.join(out_dir, base + '.csv')
     tcp_csv = '/tmp/cfm_tcp.csv'
     icmp_csv = '/tmp/cfm_icmp.csv'
     for path in (tcp_csv, icmp_csv):
@@ -205,8 +276,11 @@ def convert_one(pcap_path, raw, out_dir):
         print('    Agrupador ICMP fallo (%s)' % exc)
 
     rows = read_dicts(tcp_csv) + read_dicts(icmp_csv)
-    n = write_labeled(rows, csv_path, meta, label_name if not meta else fallback)
-    print('    %d flujos (escenario %s)' % (n, label_name))
+    sdn = load_sdn(base)
+    n = write_labeled(rows, csv_path, meta, label_name if not meta else fallback, sdn)
+    matched = sum(1 for r in rows if src_of(r) in sdn)
+    print('    %d flujos (escenario %s), %d con vista SDN de %d IPs'
+          % (n, label_name, matched, len(sdn)))
 
 
 def main():

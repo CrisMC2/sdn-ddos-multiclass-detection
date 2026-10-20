@@ -152,8 +152,10 @@ target, as a real DDoS incident would. Ground-truth labels are
 assigned per source IP rather than per capture file, and every run
 additionally logs the attack's effect on the victim as perceived by a
 real client (HTTP response code, latency, active connections),
-alongside network-level indicators (packets and bytes per second,
-OpenFlow flow-table size). The complete environment, including the
+alongside network-level indicators (packets and bytes per second) and
+OpenFlow controller telemetry collected by a custom Ryu application
+(flow-table statistics, per-source flow counts and source-IP entropy
+sampled at a fixed interval). The complete environment, including the
 traffic generators, the custom web portal, and the labelling
 pipeline, is packaged as a Docker image to remove any dependency on a
 live internet connection or on a specific host operating system.
@@ -181,6 +183,18 @@ The main contributions of this work are:
         Agrarias laboratory, plus a pipeline ready to mix authorized
         Wireshark captures of benign student traffic with
         simulation-only attacks.
+  \item OpenFlow controller telemetry exported on every run by a custom
+        Ryu application: it installs IP-based flows and periodically
+        polls flow-table statistics, which the pipeline merges with the
+        per-flow CICFlowMeter features by source IP. This supplies the
+        SDN-specific signals that the reused non-SDN datasets lack.
+  \item A time-window dataset (one row per second with portal counters
+        and aggregated SDN telemetry) and an early-detection pipeline
+        that decides while the attack is ongoing, rather than only
+        classifying completed flows. It is evaluated with a repeatable
+        multi-run driver, leave-one-run-out cross-validation reporting
+        mean~$\pm$~standard deviation, and a feature-group ablation that
+        isolates the contribution of the SDN telemetry.
 \end{enumerate}
 
 \section{Research design}\label{sec:research}
@@ -220,13 +234,25 @@ compromised hosts attack the portal while students keep browsing.}
 \subsection{Software functionalities}
 \texttt{scripts/docker/run\_scenario.sh} runs one scenario
 (\texttt{baseline}, \texttt{synflood}, \texttt{httpflood},
-\texttt{slowloris}, \texttt{icmpflood}) or all five.
+\texttt{slowloris}, \texttt{icmpflood}) or all five; its
+\texttt{repeat N} mode runs N independent repetitions, each with a
+different seed and sampled attack intensities, so results can be
+reported as mean~$\pm$~standard deviation instead of from a single run.
+\texttt{scripts/mininet/flow\_monitor\_13.py} is the Ryu controller: it
+learns like an L2 switch but installs IP-based flows and periodically
+polls OpenFlow flow statistics, writing them per run.
 \texttt{scripts/mininet/capture\_campus.py} stores the pcap and the
 student probe. \texttt{scripts/mininet/pcap\_to\_csv.py} labels each
-flow by source IP: a student stays \texttt{BENIGN} and a compromised
-host takes the attack name.
-\texttt{notebooks/analisis\_completo.py} trains the forest without IP
-addresses and tests it on Ciencias Agrarias.
+flow by source IP (a student stays \texttt{BENIGN} and a compromised
+host takes the attack name) and merges the controller telemetry by
+source IP. \texttt{scripts/mininet/build\_windows.py} builds a
+time-window dataset (one row per second) from the portal counters and
+the aggregated SDN telemetry.
+\texttt{notebooks/analisis\_completo.py} trains the per-flow forest
+without IP addresses and tests it on Ciencias Agrarias, while
+\texttt{notebooks/deteccion\_ventanas.py} evaluates the per-window
+detector with leave-one-run-out cross-validation and a feature-group
+ablation.
 \texttt{scripts/docker/preparar\_hibrido.sh} anonymizes authorized
 student Wireshark captures, mixes them with simulation attacks, and
 writes \texttt{notebooks/resultados/informe\_hibrido.txt}. The attack
@@ -365,13 +391,20 @@ a separate document distributed with the software.
 \subsection{Limitations and future improvements}
 The table is still computed from emulated students. The hybrid
 dataset (Wireshark plus simulated attack) is ready in the code and is
-updated when the authorized pcaps arrive. Every scenario in this
-run lasts 120~s. ICMP accounts for 120 flows in the whole set and 24
+updated when the authorized pcaps arrive. The reported per-flow result
+comes from a single 120~s run; the \texttt{repeat} driver and the
+leave-one-run-out cross-validation now make the evaluation repeatable,
+and the multi-run figures (mean~$\pm$~standard deviation) are being
+regenerated. ICMP accounts for 120 flows in the whole set and 24
 in the Agrarias test, so its perfect F1 is not reported as a settled
-class result. The classifier does
-not run inside Ryu; it scores flows that have already been captured.
-Future work: repeat the test with the Wireshark background, a mixed
-four-vector scenario, and more ICMP samples.
+class result. The per-window detector is designed for early detection
+and consumes the controller telemetry that a Ryu-side detector would
+use, but it still scores already-captured windows offline rather than
+running inside Ryu. Future work: report the multi-run cross-validated
+figures and the SDN ablation, repeat the test with the Wireshark
+background and a mixed four-vector scenario, add more ICMP samples, and
+move the trained per-window model into the controller for online
+detection.
 
 \subsection{Conclusions}
 The run already measured, taken at home inside Docker, is the base

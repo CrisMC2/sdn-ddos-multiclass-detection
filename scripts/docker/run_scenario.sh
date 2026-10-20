@@ -16,7 +16,8 @@ NAME="ataque-sdn-run"
 BENIGN_PORT="${BENIGN_PORT:-8080}"
 
 usage() {
-  echo "Uso: bash scripts/docker/run_scenario.sh <verify|baseline|synflood|httpflood|slowloris|icmpflood|all|convert> [segundos]" >&2
+  echo "Uso: bash scripts/docker/run_scenario.sh <verify|baseline|synflood|httpflood|slowloris|icmpflood|all|repeat|convert> [segundos]" >&2
+  echo "     repeat <N> [segundos]: N corridas con semilla e intensidades distintas (para media +/- desviacion)" >&2
   exit 1
 }
 
@@ -59,7 +60,9 @@ run_convert() {
 run_one() {
   local scenario="$1"
   local duration="$2"
-  local stats="$ROOT/data/metrics/${scenario}_docker.csv"
+  local run_name="$scenario"
+  [ -n "${RUN_TAG:-}" ] && run_name="${scenario}__${RUN_TAG}"
+  local stats="$ROOT/data/metrics/${run_name}_docker.csv"
 
   docker rm -f "$NAME" >/dev/null 2>&1 || true
   mkdir -p "$ROOT/data/raw" "$ROOT/data/metrics" "$ROOT/data/processed"
@@ -75,6 +78,10 @@ run_one() {
     -e DATA_DIR=/ataque/data \
     -e PYTHONDONTWRITEBYTECODE=1 \
     -e BENIGN_PORT="$BENIGN_PORT" \
+    -e RUN_TAG -e RUN_SEED \
+    -e SYN_PPS -e ICMP_PPS -e HTTP_FLOOD_WORKERS -e HTTP_FLOOD_PAUSE \
+    -e SLOWLORIS_CONNS -e BROWSE_PAUSE_MIN -e BROWSE_PAUSE_MAX \
+    -e SDN_POLL_INTERVAL \
     -p "127.0.0.1:${BENIGN_PORT}:${BENIGN_PORT}" \
     -v "$ROOT/data:/ataque/data" \
     -v "$ROOT/scripts/mininet:/ataque/mininet:ro" \
@@ -143,6 +150,32 @@ case "$SCENARIO" in
     for s in baseline synflood httpflood slowloris icmpflood; do
       run_one "$s" "$DURATION"
     done
+    ;;
+  repeat)
+    # repeat <N> [segundos]: N corridas de los 5 escenarios. Cada corrida
+    # usa una semilla propia e intensidades sorteadas (deterministas por la
+    # semilla), y sus archivos llevan sufijo __rNN para no pisarse. Asi el
+    # dataset final tiene varias muestras por escenario y se puede reportar
+    # media +/- desviacion en vez de un numero de una sola corrida.
+    runs="${2:-5}"
+    dur="${3:-120}"
+    seed_base="${RUN_SEED:-1}"
+    for i in $(seq 1 "$runs"); do
+      tag="$(printf 'r%02d' "$i")"
+      seed=$((seed_base + i))
+      export RUN_TAG="$tag"
+      export RUN_SEED="$seed"
+      export SYN_PPS="$(awk -v s="$seed"       'BEGIN{srand(s); print 10+int(rand()*31)}')"
+      export ICMP_PPS="$(awk -v s="$((seed+1))" 'BEGIN{srand(s); print 10+int(rand()*31)}')"
+      export HTTP_FLOOD_WORKERS="$(awk -v s="$((seed+2))" 'BEGIN{srand(s); print 3+int(rand()*4)}')"
+      export SLOWLORIS_CONNS="$(awk -v s="$((seed+3))"    'BEGIN{srand(s); print 15+int(rand()*16)}')"
+      echo "########## corrida $tag (seed=$seed): SYN_PPS=$SYN_PPS ICMP_PPS=$ICMP_PPS HTTP_FLOOD_WORKERS=$HTTP_FLOOD_WORKERS SLOWLORIS_CONNS=$SLOWLORIS_CONNS ##########"
+      for s in baseline synflood httpflood slowloris icmpflood; do
+        run_one "$s" "$dur"
+      done
+    done
+    echo "Listo: $runs corridas. Ahora pasa los pcap a CSV:"
+    echo "  bash scripts/docker/run_scenario.sh convert"
     ;;
   verify|baseline|synflood|httpflood|slowloris|icmpflood)
     run_one "$SCENARIO" "$DURATION"

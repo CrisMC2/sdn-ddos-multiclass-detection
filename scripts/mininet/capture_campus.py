@@ -39,7 +39,9 @@ from roles import (
     VICTIM_IP,
     VICTIM_NAME,
     bots,
+    run_config,
     students,
+    tagged,
 )
 from topo import build
 
@@ -188,11 +190,12 @@ def main():
 
     scenario = sys.argv[1]
     duration = int(sys.argv[2]) if len(sys.argv) > 2 else 120
-    out = os.path.abspath(sys.argv[3]) if len(sys.argv) > 3 else os.path.join(raw_dir(), '%s.pcap' % scenario)
+    name = tagged(scenario)
+    out = os.path.abspath(sys.argv[3]) if len(sys.argv) > 3 else os.path.join(raw_dir(), '%s.pcap' % name)
     os.makedirs(os.path.dirname(out), exist_ok=True)
-    metrics_path = os.path.join(metrics_dir(), '%s_interno.csv' % scenario)
+    metrics_path = os.path.join(metrics_dir(), '%s_interno.csv' % name)
     meta_path = os.path.splitext(out)[0] + '.meta.json'
-    tmp_out = '/tmp/%s.pcap' % scenario
+    tmp_out = '/tmp/%s.pcap' % name
 
     meta = {
         'scenario': scenario,
@@ -202,6 +205,7 @@ def main():
         'benign_client': BENIGN_CLIENT_IP,
         'pages': list(PAGES),
     }
+    meta.update(run_config())
     with open(meta_path, 'w') as fh:
         json.dump(meta, fh, indent=2)
 
@@ -219,9 +223,13 @@ def main():
         _install_scripts(VICTIM_IP)
         time.sleep(1)
 
-        info('*** Captura en %s\n' % out)
-        www.cmd('tcpdump -i %s -w %s >/tmp/tcpdump.log 2>&1 &' % (iface, tmp_out))
-        time.sleep(1)
+        skip_pcap = _skip_pcap()
+        if skip_pcap:
+            info('*** SKIP_PCAP: sin captura de pcap (solo metricas + SDN, mas rapido)\n')
+        else:
+            info('*** Captura en %s\n' % out)
+            www.cmd('tcpdump -i %s -w %s >/tmp/tcpdump.log 2>&1 &' % (iface, tmp_out))
+            time.sleep(1)
 
         info('*** Alumnos navegando el portal (inicio, login, notas, aula, biblioteca)\n')
         for name, _ip in students():
@@ -312,7 +320,7 @@ def main():
         avg_latency = ('%.1f' % (sum(latencies) / len(latencies))) if latencies else ''
         avg_pps = ('%.1f' % (sum(pps_values) / len(pps_values))) if pps_values else ''
         row = {
-            'scenario': scenario,
+            'scenario': name,
             'duration_s': duration,
             'samples': samples,
             'http_200': ok_n,

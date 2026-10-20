@@ -2,7 +2,13 @@
 
 Cada switch de facultad es un laboratorio de esa area, no la facultad
 entera. Los alumnos y los infectados hablan con el mismo portal.
+
+Las intensidades de ataque, las pausas del navegado y la semilla se leen
+del entorno (con los mismos valores por defecto de antes). Asi una tanda
+de varias corridas puede variarlas por corrida sin tocar el codigo, y
+cada corrida queda registrada en el meta.json.
 """
+import os
 
 VICTIM_NAME = 'www'
 VICTIM_IP = '10.0.0.10'
@@ -39,13 +45,53 @@ PAGES = ('/', '/login', '/notas', '/aula', '/biblioteca')
 PAGE_DELAY_S = 0.4
 MAX_CONNECTIONS = 30
 
-BROWSE_PAUSE_MIN = 0.5
-BROWSE_PAUSE_MAX = 1.5
-HTTP_FLOOD_PAUSE = 0.1
-HTTP_FLOOD_WORKERS = 4
-SYN_PPS = 20
-ICMP_PPS = 20
-SLOWLORIS_CONNS = 20
+def _env_float(name, default):
+    try:
+        return float(os.environ.get(name, '') or default)
+    except ValueError:
+        return float(default)
+
+
+def _env_int(name, default):
+    try:
+        return int(float(os.environ.get(name, '') or default))
+    except ValueError:
+        return int(default)
+
+
+# Etiqueta de corrida (sufijo de los archivos) y semilla registrada. Sin
+# RUN_TAG los nombres de archivo quedan como antes (compatibilidad).
+RUN_TAG = os.environ.get('RUN_TAG', '').strip()
+RUN_SEED = _env_int('RUN_SEED', 0)
+
+BROWSE_PAUSE_MIN = _env_float('BROWSE_PAUSE_MIN', 0.5)
+BROWSE_PAUSE_MAX = _env_float('BROWSE_PAUSE_MAX', 1.5)
+HTTP_FLOOD_PAUSE = _env_float('HTTP_FLOOD_PAUSE', 0.1)
+HTTP_FLOOD_WORKERS = _env_int('HTTP_FLOOD_WORKERS', 4)
+SYN_PPS = _env_int('SYN_PPS', 20)
+ICMP_PPS = _env_int('ICMP_PPS', 20)
+SLOWLORIS_CONNS = _env_int('SLOWLORIS_CONNS', 20)
+
+
+def run_config():
+    """Lo que vario en esta corrida, para guardarlo en el meta.json."""
+    return {
+        'run_tag': RUN_TAG,
+        'seed': RUN_SEED,
+        'browse_pause_min': BROWSE_PAUSE_MIN,
+        'browse_pause_max': BROWSE_PAUSE_MAX,
+        'http_flood_pause': HTTP_FLOOD_PAUSE,
+        'http_flood_workers': HTTP_FLOOD_WORKERS,
+        'syn_pps': SYN_PPS,
+        'icmp_pps': ICMP_PPS,
+        'slowloris_conns': SLOWLORIS_CONNS,
+    }
+
+
+def tagged(scenario):
+    """Nombre de archivo de la corrida: 'synflood' o 'synflood__r03'."""
+    return '%s__%s' % (scenario, RUN_TAG) if RUN_TAG else scenario
+
 
 SCENARIOS = ('baseline', 'synflood', 'httpflood', 'slowloris', 'icmpflood')
 

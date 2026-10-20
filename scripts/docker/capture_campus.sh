@@ -10,10 +10,23 @@ export DATA_DIR="${DATA_DIR:-/ataque/data}"
 export PYTHONDONTWRITEBYTECODE=1
 
 RYU=/opt/ryu-venv/bin/ryu-manager
+MONITOR=/ataque/mininet/flow_monitor_13.py
 mn -c > /dev/null 2>&1 || true
 
-echo "*** Arrancando Ryu (simple_switch_13)"
-"$RYU" ryu.app.simple_switch_13 --ofp-tcp-listen-port 6653 > /tmp/ryu.log 2>&1 &
+# La app recolecta estadisticas OpenFlow y las guarda por corrida, para
+# que pcap_to_csv.py las cruce con las conexiones. verify no las necesita.
+# RUN_TAG (si viene) separa las corridas: synflood_sdn.csv -> synflood__r03_sdn.csv
+if [ -n "${RUN_TAG:-}" ]; then
+  RUN_NAME="${SCENARIO}__${RUN_TAG}"
+else
+  RUN_NAME="${SCENARIO}"
+fi
+export SDN_FLOWS_CSV="${DATA_DIR}/metrics/${RUN_NAME}_sdn.csv"
+export SDN_POLL_INTERVAL="${SDN_POLL_INTERVAL:-2}"
+mkdir -p "${DATA_DIR}/metrics"
+
+echo "*** Arrancando Ryu (flow_monitor_13, con telemetria SDN)"
+"$RYU" "$MONITOR" --ofp-tcp-listen-port 6653 > /tmp/ryu.log 2>&1 &
 RYU_PID=$!
 sleep 4
 
