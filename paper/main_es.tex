@@ -10,12 +10,25 @@
 \usepackage{enumitem}
 \usepackage{graphicx}
 \usepackage{placeins}
+\usepackage{float}
+
+% La plantilla cas-dc imprime siempre una linea "ORCID(s):" aunque no haya
+% ORCID. Mientras no se agreguen, se oculta esa linea vacia.
+\RenewDocumentCommand\printorcid{}{}
+
+% Permitir mas floats por pagina para que las figuras no se difieran todas a
+% una pagina aparte (evita paginas casi vacias con las figuras amontonadas).
+\setcounter{topnumber}{4}
+\setcounter{bottomnumber}{3}
+\setcounter{totalnumber}{6}
+\renewcommand{\topfraction}{0.92}
+\renewcommand{\bottomfraction}{0.85}
+\renewcommand{\textfraction}{0.08}
+\renewcommand{\floatpagefraction}{0.75}
 
 \begin{document}
 
 \let\WriteBookmarks\relax
-\def\floatpagepagefraction{1}
-\def\textpagefraction{.001}
 
 \shorttitle{Campus-DDoS-SDN}
 \shortauthors{Calder\'on Leiva et al.}
@@ -70,10 +83,10 @@ Clasificaci\'on de tr\'afico de red
 \caption{Metadata del c\'odigo.}\label{tbl:metadata}
 \begin{tabular*}{\textwidth}{@{}p{1cm}p{6.5cm}L@{}}
 \toprule
-Nr. & Descripci\'on & Completar en esta columna \\
+Nr. & Descripci\'on & Detalle \\
 \midrule
 C1 & Versi\'on actual del c\'odigo & v1.0 \\
-C2 & Enlace permanente al repositorio de esta versi\'on & Completar la URL al publicar \\
+C2 & Enlace permanente al repositorio de esta versi\'on & \url{https://github.com/CrisMC2/sdn-ddos-multiclass-detection} \\
 C3 & Enlace permanente a la Reproducible Capsule & -- \\
 C4 & Licencia legal del c\'odigo & MIT \\
 C5 & Sistema de control de versiones usado & git \\
@@ -193,8 +206,6 @@ Los principales aportes de este trabajo son:
         temprana.
 \end{enumerate}
 
-\section{Planteamiento de la investigaci\'on}\label{sec:research}
-
 \subsection{Problema}
 Una precisi\'on alta obtenida con un solo tipo de ataque y capturas
 separadas no demuestra que el detector pueda reconocer tr\'afico
@@ -244,7 +255,7 @@ ataque no sale del contenedor.
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=\textwidth]{figures/topologia-campus-uncp.png}
+\includegraphics[width=\textwidth]{figures/topologia-campus.png}
 \caption{Topolog\'ia emulada. El C2 queda fuera del campus; las PCs
 infectadas atacan el portal mientras los alumnos contin\'uan
 navegando.}
@@ -319,11 +330,50 @@ salen de cinco corridas de 120~s por escenario.
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=\textwidth]{figures/metodologia-ddos-uncp.png}
-\caption{Pipeline del experimento, desde el campus emulado hasta el
-modelo. La etiqueta se asigna por emisor, no por archivo.}
+\includegraphics[width=\textwidth]{figures/Metodologia.png}
+\caption{Pipeline del experimento: del campus emulado a los dos datasets
+(por flujo y por ventana) y sus detectores. La etiqueta se asigna por
+emisor, no por archivo.}
 \label{fig:metodologia}
 \end{figure*}
+
+\FloatBarrier
+\section{Requisitos de software y hardware}\label{sec:requirements}
+
+El banco corre en un contenedor Ubuntu 24.04; las versiones de la tabla se
+leyeron dentro de la imagen \texttt{ataque-sdn}. Los modelos se entrenan al
+correr los scripts de an\'alisis (no son artefactos pre-entrenados): el
+detector reportado se obtuvo con Python 3.10.12, scikit-learn 0.23.2,
+pandas 1.3.5, numpy 1.21.5 y matplotlib 3.5.1. Ryu usa Python 3.9.25 en un
+entorno virtual separado.
+
+\begin{table}[H]
+\footnotesize
+\caption{Requisitos del banco de pruebas.}\label{tbl:testbed}
+\begin{tabular}{@{}p{0.5cm}p{2.3cm}p{1.7cm}p{1.6cm}@{}}
+\toprule
+N.\textsuperscript{o} & Descripci\'on & Herramienta & Versi\'on \\
+\midrule
+1 & Emulador de red & Mininet & 2.3.0 \\
+2 & Switch virtual & Open vSwitch & 3.3.9 \\
+3 & Controlador SDN & Ryu & 4.34 \\
+4 & Inundaci\'on SYN e ICMP & hping3 & 3.0.0-alpha-2 \\
+5 & Ataque de baja tasa & slowhttptest & 1.9.0 \\
+6 & Captura de paquetes & tcpdump & 4.99.4 \\
+7 & pcap a CSV & CICFlowMeter & 0.5.0 \\
+8 & Sistema del contenedor & Ubuntu & 24.04 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Para repetir la corrida basta una computadora de escritorio com\'un,
+con 8 n\'ucleos y 16~GB de RAM. Docker Desktop puede instalarse en
+Windows 11 o en Ubuntu. Al contenedor se le asignan 6 CPU y 8~GB, y
+dentro corre Ubuntu 24.04. Open vSwitch usa el \emph{datapath} de kernel
+cuando el m\'odulo \texttt{openvswitch} est\'a disponible en el host, y
+cae autom\'aticamente al \emph{datapath} userspace (\texttt{netdev}) en
+caso contrario; la telemetr\'ia de flujo refleja correctamente los floods
+sostenidos en ambos modos.
 
 \FloatBarrier
 \section{Resultados y panorama de impacto}\label{sec:impact}
@@ -380,7 +430,7 @@ para BENIGN, httpflood, icmpflood y synflood, y 560 para slowloris
 (Fig.~\ref{fig:ventanas_clase}). Este balance es resultado del
 dise\~no experimental, donde cada escenario dura 120~s por corrida.
 
-\begin{figure}[t]
+\begin{figure}[tbp]
 \centering
 \includegraphics[width=\columnwidth]{figures/ventanas_por_clase.png}
 \caption{Distribuci\'on de ventanas por clase en el dataset de
@@ -399,7 +449,7 @@ de volumen. Esta dispersi\'on confirma que la tasa de paquetes por
 s\'i sola no basta para distinguir todos los ataques, lo que motiva el
 uso de features combinadas de red, portal y telemetr\'ia SDN.
 
-\begin{figure}[t]
+\begin{figure}[tbp]
 \centering
 \includegraphics[width=\columnwidth]{figures/paquetes_escenario.png}
 \caption{Tasa de paquetes por segundo al portal por escenario. Slowloris
@@ -407,7 +457,7 @@ y baseline pueden ser indistinguibles en volumen.}
 \label{fig:paquetes_escenario}
 \end{figure}
 
-\begin{table}[t]
+\begin{table}[H]
 \centering
 \small
 \caption{Comparaci\'on de modelos (leave-one-run-out, 5 folds).}
@@ -431,7 +481,7 @@ muestra mayor varianza entre corridas pero sigue siendo competitiva. Se
 selecciona el bosque aleatorio por su estabilidad y su capacidad de
 producir importancias de features interpretables.
 
-\begin{table}[t]
+\begin{table}[H]
 \centering
 \small
 \caption{Ablaci\'on de features (bosque aleatorio).}
@@ -458,7 +508,7 @@ OpenFlow aporta $+$0{,}054 de F1 macro sobre usar solo contadores de
 red, mostrando que las se\~nales del controlador SDN tienen un rol
 complementario en la detecci\'on temprana.
 
-\begin{figure}[t]
+\begin{figure}[tbp]
 \centering
 \includegraphics[width=\columnwidth]{figures/ablacion_features.png}
 \caption{Ablaci\'on de features: red, SDN y todas. Las barras de error
@@ -466,7 +516,7 @@ indican la desviaci\'on est\'andar entre folds.}
 \label{fig:ablacion}
 \end{figure}
 
-\begin{table}[t]
+\begin{table}[H]
 \centering
 \small
 \caption{Recall por clase del bosque aleatorio (todas las features).}
@@ -496,7 +546,7 @@ La Fig.~\ref{fig:confusion} muestra la matriz de confusi\'on acumulada
 sobre los cinco folds. La diagonal es pr\'acticamente perfecta: solo
 3 errores sobre 2\,960 ventanas.
 
-\begin{figure}[t]
+\begin{figure}[tbp]
 \centering
 \includegraphics[width=\columnwidth]{figures/matriz_confusion.png}
 \caption{Matriz de confusi\'on acumulada sobre los 5 folds. Los
@@ -514,7 +564,7 @@ m\'etricas de servidor. A partir de la sexta posici\'on aparecen
 features SDN (\texttt{sdn\_pkts\_tcp}, \texttt{sdn\_pkts\_icmp}),
 confirmando el aporte complementario de la telemetr\'ia OpenFlow.
 
-\begin{figure}[t]
+\begin{figure}[tbp]
 \centering
 \includegraphics[width=\columnwidth]{figures/features_importantes.png}
 \caption{Diez features con mayor importancia en el bosque aleatorio.}
@@ -531,7 +581,7 @@ observada se mantuvo en torno a 230~MiB (en HTTP flood). Estos valores
 miden todo el banco (Mininet, OVS, Ryu, portal y generadores), no solo
 la v\'ictima.
 
-\subsection{Discusi\'on}
+\section{Discusi\'on}\label{sec:discusion}
 La prueba respalda la hip\'otesis para las cinco clases: el modelo
 supera 0,90 de F1 macro sin IP y generaliza hacia un laboratorio
 retenido. El F1 macro de 0{,}999 del detector por ventana debe leerse
@@ -548,12 +598,6 @@ entre SYN y Slowloris tambi\'en muestra por qu\'e conviene unir
 clasificaci\'on de flujo con una sonda de servicio: m\'as paquetes no
 implica necesariamente una p\'agina menos disponible.
 
-\subsection{Proyectos de investigaci\'on en curso que usan el software}
-El banco se usa en el trabajo de tesis de pregrado de los autores en
-la Universidad Nacional del Centro del Per\'u. El protocolo de uso de
-capturas Wireshark de estudiantes est\'a documentado para el encargado
-de redes en un documento independiente que acompa\~na al software.
-
 \subsection{Limitaciones y mejoras futuras}
 El resultado sale a\'un de alumnos emulados. El dataset h\'ibrido
 (Wireshark + ataque simulado) queda listo en el c\'odigo y se
@@ -565,7 +609,7 @@ de Ryu; trabaja sobre datos ya capturados. Trabajo futuro: repetir la
 prueba con el fondo Wireshark, un escenario mixto de cuatro vectores a
 la vez, y despliegue en l\'inea dentro del controlador.
 
-\subsection{Conclusiones}
+\section{Conclusiones}\label{sec:conclusiones}
 Campus-DDoS-SDN es un banco de pruebas reproducible, de un solo comando y
 sin dependencia de internet en vivo, que genera un dataset DDoS multiclase
 en el que el tr\'afico benigno y cuatro vectores de ataque conviven en la
@@ -584,51 +628,6 @@ distintos del incidente: s\'olo Slowloris deja el portal ca\'ido pese a su
 baja tasa de paquetes. El resultado, con alumnos emulados, es la base sobre
 la que se solicita autorizaci\'on para incorporar tr\'afico benigno real de
 la UNCP, sin sacar el ataque del contenedor.
-
-\subsection{Publicaciones habilitadas por este software}
-A\'un no hay otra publicaci\'on adem\'as de este art\'iculo. El
-software es el que permite esa evaluaci\'on.
-
-\FloatBarrier
-\section{Requisitos de software y hardware}\label{sec:requirements}
-
-El banco corre en un contenedor Ubuntu 24.04; las versiones de la tabla se
-leyeron dentro de la imagen \texttt{ataque-sdn}. Los modelos se entrenan al
-correr los scripts de an\'alisis (no son artefactos pre-entrenados): el
-detector reportado se obtuvo con Python 3.10.12, scikit-learn 0.23.2,
-pandas 1.3.5, numpy 1.21.5 y matplotlib 3.5.1. Ryu usa Python 3.9.25 en un
-entorno virtual separado.
-
-\begin{table}[t]
-\footnotesize
-\caption{Requisitos del banco de pruebas.}\label{tbl:testbed}
-\begin{tabular}{@{}p{0.5cm}p{2.3cm}p{1.7cm}p{1.6cm}@{}}
-\toprule
-N.\textsuperscript{o} & Descripci\'on & Herramienta & Versi\'on \\
-\midrule
-1 & Emulador de red & Mininet & 2.3.0 \\
-2 & Switch virtual & Open vSwitch & 3.3.9 \\
-3 & Controlador SDN & Ryu & 4.34 \\
-4 & Inundaci\'on SYN e ICMP & hping3 & 3.0.0-alpha-2 \\
-5 & Ataque de baja tasa & slowhttptest & 1.9.0 \\
-6 & Captura de paquetes & tcpdump & 4.99.4 \\
-7 & pcap a CSV & CICFlowMeter & 0.5.0 \\
-8 & Sistema del contenedor & Ubuntu & 24.04 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Para repetir la corrida basta una computadora de escritorio com\'un,
-con 8 n\'ucleos y 16~GB de RAM. Docker Desktop puede instalarse en
-Windows 11 o en Ubuntu. Al contenedor se le asignan 6 CPU y 8~GB, y
-dentro corre Ubuntu 24.04. Open vSwitch usa el \emph{datapath} de kernel
-cuando el m\'odulo \texttt{openvswitch} est\'a disponible en el host, y
-cae autom\'aticamente al \emph{datapath} userspace (\texttt{netdev}) en
-caso contrario; la telemetr\'ia de flujo refleja correctamente los floods
-sostenidos en ambos modos.
-
-\section*{Agradecimientos}
-Los autores agradecen a la Universidad Nacional del Centro del Per\'u.
 
 \bibliographystyle{cas-model2-names}
 \bibliography{references}
