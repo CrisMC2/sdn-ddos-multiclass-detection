@@ -132,7 +132,7 @@ Facebook, noticias, etc.), en vez de depender de generadores de
 tr\'afico sint\'etico. Este enfoque de tr\'afico real aumenta el
 realismo, pero introduce dos limitaciones pr\'acticas para un
 benchmark reutilizable: el dataset resultante queda atado a un solo
-vector de ataque, y no es reproducible entre corridas, ya que el
+vector de ataque, y no es reproducible entre ejecuciones, ya que el
 contenido y los tiempos capturados dependen de lo que el internet
 real ofrezca en el momento de la captura.
 
@@ -196,7 +196,7 @@ Los principales aportes de este trabajo son:
   \item Un dataset por ventana de tiempo (una fila por segundo, con
         contadores del portal y telemetr\'ia SDN agregada) y un
         pipeline de detecci\'on temprana evaluado con validaci\'on
-        cruzada leave-one-run-out sobre cinco corridas independientes.
+        cruzada leave-one-run-out sobre cinco ejecuciones independientes.
         El bosque aleatorio obtiene F1 macro = 0{,}999~$\pm$~0{,}001
         y F1 binario = 1{,}000~$\pm$~0{,}000 (sin falsos positivos).
         Una ablaci\'on de grupos de caracter\'isticas muestra que la
@@ -211,7 +211,7 @@ Una precisi\'on alta obtenida con un solo tipo de ataque y capturas
 separadas no demuestra que el detector pueda reconocer tr\'afico
 malicioso cuando los usuarios leg\'itimos siguen usando el mismo
 servicio. Adem\'as, una evaluaci\'on que depende de navegar internet
-en vivo cambia entre corridas. Por ello, el problema abordado es
+en vivo cambia entre ejecuciones. Por ello, el problema abordado es
 c\'omo construir una base reproducible que mezcle tr\'afico benigno y
 cuatro ataques contra el mismo portal, y que permita probar el modelo
 en un laboratorio distinto de los usados para entrenarlo.
@@ -322,11 +322,11 @@ se eval\'ua con un \emph{holdout} de laboratorio: entrenan cuatro \'areas
 acad\'emicas (185\,127 flujos) y se prueba sobre una no vista, Ciencias
 Agrarias (45\,550 flujos). El detector por ventana se eval\'ua con
 validaci\'on cruzada \emph{leave-one-run-out} cuando hay dos o m\'as
-corridas. Para obtener media y desviaci\'on el banco ejecuta
+ejecuciones. Para obtener media y desviaci\'on el banco ejecuta
 \texttt{run\_scenario.sh repeat N}, que repite los cinco escenarios $N$
 veces con semillas e intensidades distintas (registradas en el
 \texttt{meta.json} de cada corrida). Los resultados de este art\'iculo
-salen de cinco corridas de 120~s por escenario.
+salen de cinco ejecuciones de 120~s por escenario.
 
 \begin{figure*}[t]
 \centering
@@ -377,22 +377,23 @@ sostenidos en ambos modos.
 
 \FloatBarrier
 \section{Resultados y panorama de impacto}\label{sec:impact}
+
 El banco es completamente reproducible: se repite con semillas
 controladas, mezcla alumno y ataque en la misma captura, y produce
 dos pipelines de detecci\'on complementarios. El clasificador
 por flujo alcanza un F1 macro de \FmacroEs en el laboratorio de
 Ciencias Agrarias, retenido del entrenamiento. El detector por ventana,
-evaluado con leave-one-run-out sobre cinco corridas independientes,
+evaluado con leave-one-run-out sobre cinco ejecuciones independientes,
 obtiene F1 macro = 0{,}999~$\pm$~0{,}001. Con autorizaci\'on
 institucional, el mismo pipeline admite tr\'afico benigno real
 (Wireshark) sin sacar el ataque del contenedor.
 
 \subsection{Composici\'on del dataset por flujo}
-Los CSV de las cinco corridas suman 230\,692 flujos: 143\,133
+Los CSV de las cinco ejecuciones suman 230\,692 flujos: 143\,133
 \texttt{synflood}, 46\,728 \texttt{BENIGN}, 36\,595 \texttt{httpflood},
 3\,598 \texttt{slowloris} y 638 \texttt{icmpflood}. Esta distribuci\'on
 explica la decisi\'on de ponderar las clases durante el entrenamiento;
-a diferencia de corridas previas, la clase ICMP re\'une ahora
+a diferencia de ejecuciones previas, la clase ICMP re\'une ahora
 suficientes flujos (129 en el laboratorio retenido) para informarse.
 Adem\'as, las capturas de ataque conservan una franja benigna,
 correspondiente a alumnos que siguen usando el portal.
@@ -424,7 +425,7 @@ tambi\'en a nivel de flujo individual.
 \subsection{Detecci\'on temprana por ventana de tiempo}
 
 El dataset por ventana contiene 2\,960 ventanas de un segundo,
-distribuidas en cinco corridas independientes (r01--r05). La
+distribuidas en cinco ejecuciones independientes (r01--r05). La
 distribuci\'on por clase es pr\'acticamente balanceada: 600 ventanas
 para BENIGN, httpflood, icmpflood y synflood, y 560 para slowloris
 (Fig.~\ref{fig:ventanas_clase}). Este balance es resultado del
@@ -439,10 +440,10 @@ detecci\'on temprana.}
 \end{figure}
 
 La Fig.~\ref{fig:paquetes_escenario} muestra la distribuci\'on de la
-tasa de paquetes al portal por segundo en todas las corridas. Synflood
+tasa de paquetes al portal por segundo en todas las ejecuciones. Synflood
 presenta la tasa m\'as alta y consistente. Httpflood tiene una mediana
 menor pero con outliers extremos, reflejando la variabilidad en la
-intensidad entre corridas. Slowloris es el m\'as llamativo: su mediana
+intensidad entre ejecuciones. Slowloris es el m\'as llamativo: su mediana
 es baja, similar al baseline, pero presenta outliers elevados; esto es
 coherente con su naturaleza de ataque de agotamiento de conexiones, no
 de volumen. Esta dispersi\'on confirma que la tasa de paquetes por
@@ -477,7 +478,7 @@ La Tabla~\ref{tbl:comparacion_modelos} compara los tres modelos
 evaluados. Los tres superan ampliamente la hip\'otesis de trabajo
 (F1 macro $>$ 0{,}90). El bosque aleatorio y el gradient boosting son
 equivalentes; la regresi\'on log\'istica, siendo un modelo lineal,
-muestra mayor varianza entre corridas pero sigue siendo competitiva. Se
+muestra mayor varianza entre ejecuciones pero sigue siendo competitiva. Se
 selecciona el bosque aleatorio por su estabilidad y su capacidad de
 producir importancias de features interpretables.
 
@@ -589,7 +590,7 @@ retenido. El F1 macro de 0{,}999 del detector por ventana debe leerse
 con cautela y no como una afirmaci\'on de rendimiento en producci\'on:
 a resoluci\'on de un segundo las ventanas de ataque presentan firmas muy
 marcadas frente al tr\'afico benigno, y la evaluaci\'on es de
-laboratorio (\emph{leave-one-run-out} sobre cinco corridas), no un
+laboratorio (\emph{leave-one-run-out} sobre cinco ejecuciones), no un
 despliegue en l\'inea sobre una red real. El resultado m\'as informativo
 no es la cifra absoluta sino la ablaci\'on: que la telemetr\'ia OpenFlow
 aporte $+$0{,}054 de F1 macro, y que sea decisiva para distinguir ICMP de

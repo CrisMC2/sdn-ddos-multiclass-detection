@@ -35,6 +35,7 @@ Thumbs.db
 # Editores/IDEs
 .vscode/
 .idea/
+.devcontainer*/
 
 # Archivos auxiliares de la compilacion de LaTeX (se regeneran al
 # compilar main.tex). main.pdf SI se versiona, como referencia.
