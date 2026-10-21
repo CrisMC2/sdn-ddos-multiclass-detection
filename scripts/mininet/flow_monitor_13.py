@@ -7,16 +7,33 @@ cosas que son las que aportan la "vista SDN" al dataset:
 
 1. Instala los flujos de IPv4 emparejando por (ipv4_src, ipv4_dst,
    ip_proto). Asi cada entrada de la tabla de flujos corresponde a un par
-   de IPs y su protocolo, y sus contadores (paquetes, bytes, duracion) se
-   pueden etiquetar por la IP que los genero.
+   de IPs y su protocolo, y el trafico se puede etiquetar por la IP que lo
+   genero.
 
-2. Un hilo pide cada SDN_POLL_INTERVAL segundos las estadisticas de flujo
-   a cada switch (FlowStatsRequest) y las escribe en SDN_FLOWS_CSV. Esa es
-   la telemetria que luego pcap_to_csv.py cruza con las conexiones.
+2. Un hilo pide cada SDN_POLL_INTERVAL segundos los contadores de flujo y
+   los escribe en SDN_FLOWS_CSV. Esa es la telemetria que luego
+   pcap_to_csv.py cruza con las conexiones y build_windows.py convierte en
+   features por ventana.
 
-No instala flujos por puerto L4 a proposito: en Open vSwitch userspace
-(Docker/WSL) una tabla con un flujo por paquete de un flood tumba el
-emulador. Un flujo por par de IPs es estable y basta para medir ritmos.
+   OJO (por que se leen del DATAPATH y no de OpenFlow): pedir las
+   estadisticas por OpenFlow (OFPFlowStatsRequest) NO sirve para floods
+   sostenidos sin puertos L4. En OVS (userspace y kernel por igual) el
+   contador OpenFlow de una regla solo se actualiza cuando el flujo del
+   datapath que la implementa se destruye. El TCP crea y destruye muchos
+   flujos de datapath (puertos origen variables) asi que su contador
+   OpenFlow crece; pero el ICMP es UN solo flujo de datapath que nunca se
+   destruye, asi que su contador OpenFlow se congela a los ~5 s aunque el
+   trafico siga (se confirmo: el plano de datos y 'ovs-dpctl' crecen toda
+   la corrida, solo el contador OpenFlow se pega). Como la telemetria
+   alimenta al detector por ventana, eso borraba la senal de icmpflood.
+   Por eso aqui los contadores se toman de 'ovs-dpctl dump-flows', que
+   refleja el trafico real para todos los protocolos. Se lleva el estado
+   por flujo del datapath para reconstruir un acumulado monotono por
+   (src, dst, proto) aunque los flujos del datapath aparezcan y desaparezcan.
+
+No instala flujos por puerto L4 a proposito: en Open vSwitch una tabla con
+un flujo por paquete de un flood tumba el emulador. Un flujo por par de IPs
+es estable y basta para medir ritmos.
 
 Corre dentro del venv de Ryu:
     SDN_FLOWS_CSV=/ataque/data/metrics/baseline_sdn.csv \
@@ -24,6 +41,8 @@ Corre dentro del venv de Ryu:
 """
 import csv
 import os
+import re
+import subprocess
 import time
 
 from ryu.base import app_manager
@@ -39,6 +58,13 @@ CSV_FIELDS = [
     'timestamp', 'dpid', 'src_ip', 'dst_ip', 'proto', 'packets', 'bytes',
     'duration_s',
 ]
+
+# Un flujo del datapath se parte en "match" (antes de ", packets:") y
+# "stats". El match identifica al flujo (lleva in_port + cabeceras) y sirve
+# de clave estable para calcular deltas entre muestreos.
+_IPV4_RE = re.compile(r'ipv4\(src=([0-9.]+)[^,]*,dst=([0-9.]+)[^,]*,proto=(\d+)')
+_PKTS_RE = re.compile(r'packets:(\d+)')
+_BYTES_RE = re.compile(r'bytes:(\d+)')
 
 
 def _csv_path():
@@ -63,6 +89,10 @@ class FlowMonitor13(app_manager.RyuApp):
         self.datapaths = {}
         self.csv_path = _csv_path()
         self.poll_interval = _poll_interval()
+        # Estado para reconstruir acumulados monotonos desde el datapath.
+        self._dp_prev = {}       # match del flujo de datapath -> (pkts, bytes)
+        self._cum = {}           # (src, dst, proto) -> [pkts, bytes]
+        self._first_seen = {}    # (src, dst, proto) -> timestamp
         self._ensure_csv()
         self.monitor_thread = hub.spawn(self._monitor)
 
@@ -92,18 +122,72 @@ class FlowMonitor13(app_manager.RyuApp):
         except OSError as exc:
             self.logger.warning('No se pudo escribir %s: %s', self.csv_path, exc)
 
-    # ---- hilo de monitoreo ---------------------------------------------
+    # ---- hilo de monitoreo: contadores desde el datapath ---------------
 
     def _monitor(self):
         while True:
-            for dp in list(self.datapaths.values()):
-                self._request_stats(dp)
+            try:
+                self._poll_datapath()
+            except Exception as exc:  # nunca matar el hilo por un muestreo
+                self.logger.warning('muestreo del datapath fallo: %s', exc)
             hub.sleep(self.poll_interval)
 
-    def _request_stats(self, datapath):
-        parser = datapath.ofproto_parser
-        req = parser.OFPFlowStatsRequest(datapath)
-        datapath.send_msg(req)
+    def _dump_datapath_flows(self):
+        """Texto crudo de 'ovs-dpctl dump-flows' (todos los datapaths)."""
+        try:
+            return subprocess.check_output(
+                ['ovs-dpctl', 'dump-flows'],
+                stderr=subprocess.DEVNULL, text=True, timeout=5,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return ''
+
+    def _poll_datapath(self):
+        """Suma los deltas de cada flujo del datapath en un acumulado por
+        (src, dst, proto) y escribe una fila por flujo logico en este muestreo.
+
+        Los contadores del datapath solo crecen mientras el flujo vive; al
+        morir desaparece pero su ultimo delta ya quedo sumado. Si un match se
+        reusa y su contador reinicia (cur < prev), se cuenta como flujo nuevo.
+        """
+        text = self._dump_datapath_flows()
+        if not text:
+            return
+        now = int(time.time())
+        for line in text.splitlines():
+            head, sep, tail = line.partition(', packets:')
+            if not sep:
+                continue
+            m = _IPV4_RE.search(head)
+            if not m:
+                continue  # ARP, LLDP u otros sin IPv4: no aportan al dataset
+            src, dst, proto = m.group(1), m.group(2), m.group(3)
+            pm = _PKTS_RE.search('packets:' + tail)
+            bm = _BYTES_RE.search(tail)
+            if not pm:
+                continue
+            pkts = int(pm.group(1))
+            nbytes = int(bm.group(1)) if bm else 0
+            prev = self._dp_prev.get(head)
+            if prev is None or pkts < prev[0]:
+                d_pkts, d_bytes = pkts, nbytes          # flujo nuevo o reiniciado
+            else:
+                d_pkts, d_bytes = pkts - prev[0], nbytes - prev[1]
+            self._dp_prev[head] = (pkts, nbytes)
+            key = (src, dst, proto)
+            acc = self._cum.get(key)
+            if acc is None:
+                acc = [0, 0]
+                self._cum[key] = acc
+                self._first_seen[key] = now
+            acc[0] += d_pkts
+            acc[1] += max(0, d_bytes)
+
+        rows = []
+        for (src, dst, proto), (pkts, nbytes) in self._cum.items():
+            dur = max(0.0, now - self._first_seen.get((src, dst, proto), now))
+            rows.append([now, 0, src, dst, proto, pkts, nbytes, round(dur, 3)])
+        self._append_rows(rows)
 
     @set_ev_cls(ofp_event.EventOFPStateChange, [MAIN_DISPATCHER, DEAD_DISPATCHER])
     def _state_change(self, ev):
@@ -112,25 +196,6 @@ class FlowMonitor13(app_manager.RyuApp):
             self.datapaths[datapath.id] = datapath
         elif ev.state == DEAD_DISPATCHER:
             self.datapaths.pop(datapath.id, None)
-
-    @set_ev_cls(ofp_event.EventOFPFlowStatsReply, MAIN_DISPATCHER)
-    def _flow_stats_reply(self, ev):
-        now = int(time.time())
-        dpid = ev.msg.datapath.id
-        rows = []
-        for stat in ev.msg.body:
-            match = stat.match
-            src = match.get('ipv4_src')
-            dst = match.get('ipv4_dst')
-            if src is None or dst is None:
-                # table-miss, ARP u otros flujos sin IP: no aportan al dataset.
-                continue
-            proto = match.get('ip_proto', 0)
-            rows.append([
-                now, dpid, src, dst, proto, stat.packet_count,
-                stat.byte_count, stat.duration_sec,
-            ])
-        self._append_rows(rows)
 
     # ---- plano de datos: switch de aprendizaje con flujos por IP -------
 

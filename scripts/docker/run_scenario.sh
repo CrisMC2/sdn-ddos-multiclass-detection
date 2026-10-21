@@ -10,6 +10,15 @@
 #   bash scripts/docker/run_scenario.sh all 20
 set -euo pipefail
 
+# En Git Bash/MSYS2 (Windows) los argumentos que parecen rutas Unix
+# (p.ej. /ataque/scripts/capture_campus.sh o -e DATA_DIR=/ataque/data) se
+# convierten a rutas Windows antes de llegar a docker, y el contenedor no
+# encuentra sus scripts ("bash: C:/Program Files/Git/ataque/...: No such
+# file or directory"). Esto desactiva esa conversion. Es inocuo en
+# macOS/Linux/WSL (ignoran estas variables de MSYS).
+export MSYS_NO_PATHCONV=1
+export MSYS2_ARG_CONV_EXCL='*'
+
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 IMAGE="${IMAGE:-ataque-sdn}"
 NAME="ataque-sdn-run"
@@ -34,6 +43,28 @@ if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
   echo "No esta la imagen $IMAGE. Construyendola; la primera vez tarda varios minutos."
   docker build -t "$IMAGE" -f "$ROOT/scripts/docker/Dockerfile" "$ROOT"
 fi
+
+ensure_ovs_kernel_module() {
+  # El datapath de kernel de OVS ('system') necesita el modulo 'openvswitch'
+  # cargado en el kernel. El contenedor privilegiado comparte el kernel del
+  # host, pero no puede hacer modprobe (no tiene /lib/modules). Sin el modulo,
+  # topo.py cae a userspace (netdev) y el flood ICMP se congela a los ~8 s.
+  #
+  # En Windows+Docker Desktop el host es el kernel de WSL2, que YA trae
+  # openvswitch.ko (kernels 6.x microsoft-standard-WSL2). Lo cargamos via WSL
+  # como root (sin sudo/contrasena); queda visible para los contenedores.
+  # En macOS/Linux no hay wsl.exe: no se hace nada y se mantiene el
+  # comportamiento previo (si el modulo no esta, OVS usa userspace).
+  if command -v wsl.exe >/dev/null 2>&1; then
+    local distro="${WSL_OVS_DISTRO:-Ubuntu}"
+    if wsl.exe -d "$distro" -u root -- modprobe openvswitch >/dev/null 2>&1; then
+      echo "OVS: modulo 'openvswitch' cargado en el kernel de WSL2 (datapath de kernel disponible)."
+    else
+      echo "OVS: no se pudo cargar 'openvswitch' en WSL2 ($distro); OVS usara userspace (el ICMP puede congelarse)." >&2
+    fi
+  fi
+}
+ensure_ovs_kernel_module
 
 cleanup() {
   if [ -n "${SAMPLER_PID:-}" ]; then
@@ -82,6 +113,7 @@ run_one() {
     -e SYN_PPS -e ICMP_PPS -e HTTP_FLOOD_WORKERS -e HTTP_FLOOD_PAUSE \
     -e SLOWLORIS_CONNS -e BROWSE_PAUSE_MIN -e BROWSE_PAUSE_MAX \
     -e SDN_POLL_INTERVAL \
+    -e OVS_DATAPATH \
     -p "127.0.0.1:${BENIGN_PORT}:${BENIGN_PORT}" \
     -v "$ROOT/data:/ataque/data" \
     -v "$ROOT/scripts/mininet:/ataque/mininet:ro" \

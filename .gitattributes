@@ -1,0 +1,10 @@
+# Los scripts se montan y ejecutan dentro de contenedores Linux (OVS/Mininet)
+# y en WSL. Con core.autocrlf=true en Windows se checkouteaban con CRLF y el
+# shebang '#!/usr/bin/env bash\r' rompia en el contenedor
+# ("/usr/bin/env: 'bash\r': No such file or directory"). Forzamos LF siempre.
+*.sh   text eol=lf
+*.py   text eol=lf
+*.bash text eol=lf
+
+# Normaliza fin de linea de archivos de texto por defecto (LF en el repo).
+* text=auto
