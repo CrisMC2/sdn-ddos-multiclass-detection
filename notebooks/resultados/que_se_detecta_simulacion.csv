@@ -1,0 +1,6 @@
+clase,precision,recall,f1-score,support,en_el_flujo,en_la_pagina
+BENIGN,1.0,1.0,1.0,8769.0,se distingue bien,es el trafico de referencia
+httpflood,1.0,1.0,1.0,7308.0,se distingue bien,sin sonda
+icmpflood,1.0,1.0,1.0,129.0,se distingue bien,sin sonda
+slowloris,1.0,1.0,1.0,708.0,se distingue bien,sin sonda
+synflood,1.0,1.0,1.0,28636.0,se distingue bien,sin sonda

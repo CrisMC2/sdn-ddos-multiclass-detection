@@ -1,0 +1,38 @@
+Informe de analisis — solo simulacion
+
+Modelo: bosque aleatorio (sin IP, sin puertos, sin timestamp).
+Particion: holdout_10.5
+Entrena: 185127 flujos. Prueba: 45550 flujos.
+F1 macro: 1.000
+F1 binario (BENIGN vs ATAQUE): 1.000
+
+Clase        Precision  Recall  F1     Flujos  En el flujo | En la pagina
+BENIGN          1.000   1.000  1.000    8769  se distingue bien | es el trafico de referencia
+httpflood       1.000   1.000  1.000    7308  se distingue bien | sin sonda
+icmpflood       1.000   1.000  1.000     129  se distingue bien | sin sonda
+slowloris       1.000   1.000  1.000     708  se distingue bien | sin sonda
+synflood        1.000   1.000  1.000   28636  se distingue bien | sin sonda
+
+Columnas que mas pesan:
+  0.086  sdn_avg_pkt_bytes
+  0.067  sdn_bytes
+  0.059  sdn_pkts
+  0.052  fwd_pkt_len_mean
+  0.050  sdn_bytes_s
+  0.048  sdn_pkts_s
+  0.044  fwd_seg_size_avg
+  0.042  fwd_pkt_len_std
+
+Que se puede afirmar
+  Las clases con 'se distingue bien' y support >= 30 son defendibles.
+  El detector no usa la IP: distingue comportamiento de flujo.
+
+Que no se puede afirmar
+  icmpflood si el support es bajo.
+  Deteccion en vivo dentro de Ryu (esto clasifica flujos ya capturados).
+
+Mejoras siguientes (con permiso Wireshark):
+  1. Poner los .pcap del encargado en data/real/wireshark/
+  2. bash scripts/docker/preparar_hibrido.sh
+  3. Leer notebooks/resultados/informe_hibrido.txt
+  4. Comparar F1 simulación vs hibrido en comparacion.txt

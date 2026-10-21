@@ -1,18 +1,18 @@
 \begin{table}[t]
 \centering
 \small
-\caption{Sonda del portal. Cada escenario dura 120~s.}
+\caption{Sonda del portal (media de cinco corridas de 120~s por escenario).}
 \label{tbl:sonda}
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{lrrrr}
 \hline
 Escenario & HTTP 200 & Fallos & Latencia (ms) & Paquetes/s \\
 \hline
-baseline & 120 & 0 & 407 & 111 \\
-synflood & 120 & 0 & 404 & 466 \\
-httpflood & 120 & 0 & 564 & 386 \\
-slowloris & 1 & 117 & 403 & 86 \\
-icmpflood & 120 & 0 & 404 & 271 \\
+baseline & 120 & 0 & 402 & 145 \\
+synflood & 120 & 0 & 401 & 715 \\
+httpflood & 120 & 0 & 644 & 504 \\
+slowloris & 1 & 111 & 1004 & 83 \\
+icmpflood & 120 & 0 & 401 & 319 \\
 \hline
 \end{tabular}
 \end{table}

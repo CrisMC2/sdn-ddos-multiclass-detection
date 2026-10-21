@@ -50,7 +50,8 @@ cada flujo se etiqueta por la IP de origen, no por el archivo. Un
 bosque aleatorio, entrenado sin direcciones IP y probado en el
 laboratorio de Ciencias Agrarias, obtiene un F1 macro de \FmacroEs.
 \input{frase_es.tex}
-La clase ICMP no se afirma: en la prueba de Agrarias hay 24 flujos.
+En la prueba de Agrarias la clase ICMP re\'une 129 flujos, de modo que
+las cinco clases se informan.
 \end{abstract}
 
 \begin{keywords}
@@ -182,13 +183,12 @@ Los principales aportes de este trabajo son:
         contadores del portal y telemetr\'ia SDN agregada) y un
         pipeline de detecci\'on temprana evaluado con validaci\'on
         cruzada leave-one-run-out sobre cinco corridas independientes.
-        El bosque aleatorio obtiene F1 macro = 0{,}811~$\pm$~0{,}055
+        El bosque aleatorio obtiene F1 macro = 0{,}999~$\pm$~0{,}001
         y F1 binario = 1{,}000~$\pm$~0{,}000 (sin falsos positivos).
         Una ablaci\'on de grupos de caracter\'isticas muestra que la
-        telemetr\'ia SDN aporta apenas $+$0{,}004 de F1 macro sobre
-        usar solo los contadores de red, lo que indica que el portal
-        por s\'i solo concentra la mayor parte de la se\~nal
-        discriminante.
+        telemetr\'ia SDN aporta $+$0{,}054 de F1 macro sobre usar solo
+        los contadores de red, y es decisiva para separar la
+        inundaci\'on ICMP de la TCP-SYN.
 \end{enumerate}
 
 \section{Planteamiento de la investigaci\'on}\label{sec:research}
@@ -218,16 +218,27 @@ del flujo permiten lograr un F1 macro mayor a 0,90 en el laboratorio
 retenido. Esta hip\'otesis se contrasta primero en casa; la validaci\'on
 con tr\'afico real de la UNCP queda como fase propuesta y autorizada.
 
-\section{Descripci\'on del software}\label{sec:description}
+\section{Flujo de trabajo}\label{sec:workflow}
 
-\subsection{Arquitectura general}
-La topolog\'ia es un campus reducido: m\'odem de borde, switch core,
-DMZ con el portal y un laboratorio por \'area acad\'emica. Cada
-laboratorio tiene alumnos y PCs infectadas. Los switches son Open
-vSwitch en userspace, con Ryu. Durante un ataque los alumnos siguen
-pidiendo p\'aginas del portal. Desde el navegador del operador,
-\texttt{http://127.0.0.1:8080/} entra como un cliente benigno m\'as
-(\texttt{10.9.0.1}); el ataque no sale del contenedor.
+Todo el experimento se lanza con un solo comando sobre la imagen Docker
+\texttt{ataque-sdn}. Dentro del contenedor se levantan, en orden, el
+controlador Ryu, Open vSwitch y la topolog\'ia Mininet; luego se ejecuta
+el escenario pedido y se recogen las salidas. El flujo completo va del
+campus emulado a los dos datasets etiquetados (por flujo y por ventana de
+tiempo) y a sus detectores (Fig.~\ref{fig:metodologia}).
+
+\subsection{Topolog\'ia y poblaci\'on}
+La topolog\'ia reproduce un campus reducido: un m\'odem de borde, un switch
+\emph{core}, una DMZ que aloja el portal web (la v\'ictima,
+\texttt{10.0.0.10}) y un laboratorio por \'area acad\'emica, conectados por
+siete switches Open vSwitch gobernados por Ryu. Cada laboratorio tiene
+cuatro alumnos y dos PC comprometidas (20 alumnos y 10 PC infectadas en
+total). El centro de mando (C2) queda del lado de internet del m\'odem
+(\texttt{192.168.9.10}); todo el campus vive en \texttt{10.0.0.0/8}.
+Durante un ataque los alumnos siguen pidiendo p\'aginas del portal, y el
+navegador del operador entra como un cliente benigno m\'as
+(\texttt{http://127.0.0.1:8080/} $\rightarrow$ \texttt{10.9.0.1}). El
+ataque no sale del contenedor.
 
 \begin{figure*}[t]
 \centering
@@ -238,61 +249,71 @@ navegando.}
 \label{fig:topologia}
 \end{figure*}
 
-\subsection{Funcionalidades del software}
-\texttt{scripts/docker/run\_scenario.sh} levanta un escenario
-(\texttt{baseline}, \texttt{synflood}, \texttt{httpflood},
-\texttt{slowloris}, \texttt{icmpflood}) o los cinco con \texttt{all}.
-\texttt{scripts/mininet/capture\_campus.py} captura el pcap y la sonda
-del alumno. \texttt{scripts/mininet/pcap\_to\_csv.py} etiqueta cada
-flujo por la IP de origen: el alumno queda \texttt{BENIGN} y la PC
-infectada lleva el nombre del ataque. \texttt{notebooks/analisis\_completo.py} entrena el bosque sin usar la
-IP y lo prueba en Ciencias Agrarias.
-\texttt{scripts/docker/preparar\_hibrido.sh} anonimiza capturas
-Wireshark autorizadas de estudiantes, las mezcla con los ataques de
-la simulaci\'on y escribe
-\texttt{notebooks/resultados/informe\_hibrido.txt}. El ataque no se
-ejecuta contra la red real.
+\subsection{Generaci\'on de tr\'afico mixto}
+Las PC comprometidas lanzan uno de cuatro vectores: inundaci\'on TCP-SYN
+(\texttt{hping3}), inundaci\'on HTTP, Slowloris (\texttt{slowhttptest}) e
+inundaci\'on ICMP. Los floods sostenidos (SYN e ICMP) corren en un bucle
+con \texttt{timeout} que relanza el generador cada 5~s para que el ritmo no
+decaiga; el ICMP usa el \texttt{ping} del kernel, que sostiene la tasa
+mejor que el modo \texttt{--icmp} de \texttt{hping3} sobre Open vSwitch.
+Como el tr\'afico leg\'itimo nunca se detiene, cada captura mezcla flujos
+benignos y maliciosos contra el mismo portal. El banco se orquesta con
+\texttt{scripts/docker/run\_scenario.sh}, que levanta un escenario o los
+cinco.
 
-\subsection{Dise\~no experimental y variables}
-Se ejecutan cinco escenarios independientes: un baseline y cuatro
-ataques. Cada uno dura 120~s, parte de una topolog\'ia limpia y usa
-la misma poblaci\'on: 20 alumnos, 10 PCs infectadas, un portal, un C2,
-un m\'odem y siete switches. La variable independiente es el
-escenario. Como variables de respuesta se registran: disponibilidad
-HTTP, latencia media y percentil 95, paquetes por segundo recibidos
-por el portal, m\'aximo de flujos en el core, CPU, memoria y red del
-contenedor. Para el modelo se usan estad\'isticas bidireccionales de
-flujo producidas por CICFlowMeter y por el agrupador ICMP.
+\subsection{Captura y medici\'on}
+Cada escenario deja, adem\'as del \texttt{pcap} tomado en la interfaz del
+portal, tres fuentes sincronizadas por segundo: una sonda del alumno
+(c\'odigo HTTP, latencia y paquetes por segundo que percibe el portal), la
+telemetr\'ia del controlador OpenFlow, y el consumo del contenedor (CPU,
+memoria y red) v\'ia \texttt{docker stats}. La telemetr\'ia SDN la produce
+una aplicaci\'on Ryu propia (\texttt{flow\_monitor\_13.py}) que, adem\'as de
+reenviar, instala un flujo por cada tripleta (IP origen, IP destino,
+protocolo) y muestrea peri\'odicamente los contadores de esos flujos en el
+switch (paquetes, bytes y entradas activas). Los contadores se leen del
+plano de datos del switch para que reflejen el volumen real incluso bajo un
+flood sostenido, condici\'on necesaria para que la se\~nal de protocolo (en
+particular la de ICMP) no se pierda en la telemetr\'ia.
 
-\subsection{Del pcap al modelo}
-La corrida de este art\'iculo sale de un comando,
-\texttt{run\_scenario.sh all 120}. Dentro del contenedor arrancan
-Open vSwitch, Ryu y la topolog\'ia. Cada escenario dura 120~s y deja
-tres cosas: el pcap en la interfaz del portal, la sonda del alumno
-(c\'odigo HTTP, latencia, paquetes por segundo) y el consumo del
-contenedor, muestreado con \texttt{docker stats}.
+\subsection{Etiquetado por IP de origen}
+La verdad fundamental se asigna por emisor, no por archivo de captura. Un
+flujo es \texttt{BENIGN} salvo que su IP de origen sea una PC comprometida
+y el escenario no sea el \texttt{baseline}; en ese caso lleva el nombre del
+ataque. As\'i el alumno, el portal y todo el \texttt{baseline} quedan
+\texttt{BENIGN} incluso dentro de una captura de ataque. Las IP
+comprometidas vienen en el JSON que acompa\~na a cada \texttt{pcap}.
 
-\texttt{pcap\_to\_csv.py} parte cada pcap en dos. TCP y UDP pasan por
-CICFlowMeter. ICMP no entra en ese filtro, as\'i que un agrupador
-propio cierra el flujo a los 10~s: si no se cortara, cada PC
-infectada dejar\'ia un solo flujo largo y la clase quedar\'ia con
-unas pocas filas. La etiqueta no sale del nombre del archivo. El
-JSON que acompa\~na al pcap trae las IP infectadas. Si la IP es de
-una infectada y el escenario no es el baseline, el flujo lleva el
-nombre del ataque. El alumno, el portal y todo el baseline quedan
-\texttt{BENIGN}. En esta corrida hay 40\,877 flujos. El baseline
-aporta 2\,671, todos benignos. En los ataques el alumno sigue dentro
-del mismo CSV.
+\subsection{Dos datasets, dos tareas}
+Del tr\'afico capturado se derivan dos conjuntos complementarios.
+\emph{Por flujo} (\texttt{pcap\_to\_csv.py}): el tr\'afico TCP y UDP pasa
+por CICFlowMeter, que produce estad\'isticas bidireccionales; el ICMP, que
+no entra en ese filtro, lo cierra un agrupador propio a los 10~s (sin ese
+corte cada PC dejar\'ia un \'unico flujo larg\'isimo y la clase quedar\'ia
+con muy pocas filas). A cada flujo se le a\~naden columnas \texttt{sdn\_*}
+derivadas de la telemetr\'ia OpenFlow, cruzadas por IP de origen. Antes de
+entrenar se descartan la IP origen, la IP destino, los puertos y la marca
+de tiempo, para que el modelo aprenda comportamiento y no identidad de la
+m\'aquina; los valores infinitos o vac\'ios pasan a cero y se quita toda
+columna constante. El modelo es un bosque de 200 \'arboles con peso por
+clase, porque la inundaci\'on SYN domina el conjunto. \emph{Por ventana de
+tiempo} (\texttt{build\_windows.py}): una fila por segundo que agrega los
+contadores del portal y la telemetr\'ia SDN del intervalo (entrop\'ia de
+las IP de origen, concentraci\'on del tr\'afico, crecimiento de la tabla de
+flujos y paquetes por protocolo), para la detecci\'on \emph{mientras el
+ataque ocurre}.
 
-Antes de entrenar se botan la IP de origen, la IP de destino, los
-puertos y la marca de tiempo. Un infinito o un vac\'io pasa a cero, y
-se quita toda columna que no var\'ia en el entrenamiento. Si la IP se
-quedara, el bosque memorizar\'ia qu\'e m\'aquina est\'a infectada y
-no el comportamiento del flujo. El modelo es un bosque de 200
-\'arboles con peso por clase, porque la inundaci\'on SYN aporta
-23\,539 flujos y aplasta al resto. No se parte al azar: entrenan
-Salud, Ingenier\'ias, Empresariales y Sociales (32\,784 flujos) y se
-prueba solo Agrarias (8\,091).
+\subsection{Protocolo de evaluaci\'on}
+Nunca se usa una partici\'on aleatoria, porque ventanas y flujos vecinos
+est\'an correlacionados. El modelo por flujo (\texttt{analisis\_completo.py})
+se eval\'ua con un \emph{holdout} de laboratorio: entrenan cuatro \'areas
+acad\'emicas (185\,127 flujos) y se prueba sobre una no vista, Ciencias
+Agrarias (45\,550 flujos). El detector por ventana se eval\'ua con
+validaci\'on cruzada \emph{leave-one-run-out} cuando hay dos o m\'as
+corridas. Para obtener media y desviaci\'on el banco ejecuta
+\texttt{run\_scenario.sh repeat N}, que repite los cinco escenarios $N$
+veces con semillas e intensidades distintas (registradas en el
+\texttt{meta.json} de cada corrida). Los resultados de este art\'iculo
+salen de cinco corridas de 120~s por escenario.
 
 \begin{figure*}[t]
 \centering
@@ -315,14 +336,14 @@ del contenedor. La sonda de esa corrida est\'a en la
 Tabla~\ref{tbl:sonda}: solo Slowloris deja el portal ca\'ido.
 
 \subsection{Composici\'on del conjunto}
-Los cinco CSV suman 40\,877 flujos: 9\,400 \texttt{BENIGN},
-23\,539 \texttt{synflood}, 7\,188 \texttt{httpflood}, 630
-\texttt{slowloris} y 120 \texttt{icmpflood}. Esta distribuci\'on
-explica dos decisiones: ponderar las clases durante el entrenamiento
-y no presentar ICMP como una clase consolidada. La
-Fig.~\ref{fig:flujos} muestra adem\'as que las capturas de ataque
-conservan una franja benigna, correspondiente a alumnos que siguen
-usando el portal.
+Los CSV de las cinco corridas suman 230\,692 flujos: 143\,133
+\texttt{synflood}, 46\,728 \texttt{BENIGN}, 36\,595 \texttt{httpflood},
+3\,598 \texttt{slowloris} y 638 \texttt{icmpflood}. Esta distribuci\'on
+explica la decisi\'on de ponderar las clases durante el entrenamiento;
+a diferencia de corridas previas, la clase ICMP re\'une ahora
+suficientes flujos (129 en el laboratorio retenido) para informarse.
+Adem\'as, las capturas de ataque conservan una franja benigna,
+correspondiente a alumnos que siguen usando el portal.
 
 %\begin{figure}[t]
 %\centering
@@ -334,23 +355,26 @@ usando el portal.
 \subsection{Impacto sobre el portal}
 \input{tabla_sonda.tex}
 
-SYN genera la mayor tasa, 466 paquetes/s, pero la sonda mantiene
+SYN genera la mayor tasa, 715 paquetes/s, pero la sonda mantiene las
 120 respuestas HTTP 200. HTTP flood eleva la latencia media de
-407 a 564~ms. Slowloris produce solo 86 paquetes/s, pero ocupa las
-conexiones disponibles: falla en 117 de 118 intentos. Por tanto, la
+402 a 644~ms. Slowloris produce solo 83 paquetes/s, pero ocupa las
+conexiones disponibles: falla en 111 de 112 intentos. Por tanto, la
 tasa de paquetes por s\'i sola no describe el impacto de aplicaci\'on.
 
 \subsection{Rendimiento del clasificador}
 \input{tabla_resultados.tex}
 
 El F1 macro en Agrarias es \FmacroEs y el F1 binario
-\texttt{BENIGN} frente a ataque es 0,970. Las variables con mayor
-peso son el tama\~no medio del segmento de ida, la media y el
-m\'aximo de longitud de paquete de ida, la suma de bytes de ida y la
-variabilidad del tama\~no. Esto es coherente con los escenarios: SYN
-genera segmentos peque\~nos y repetidos, HTTP intercambia solicitudes
-y respuestas completas, y Slowloris sostiene conexiones con poco
-tr\'afico.
+\texttt{BENIGN} frente a ataque es 1{,}000. Entre las variables de
+mayor peso aparecen tanto estad\'isticas de CICFlowMeter (la media y la
+variabilidad de la longitud de paquete de ida y el tama\~no medio del
+segmento de ida) como columnas derivadas de la telemetr\'ia OpenFlow
+cruzada por IP de origen (\texttt{sdn\_avg\_pkt\_bytes},
+\texttt{sdn\_bytes}, \texttt{sdn\_pkts}). Esto es coherente con los
+escenarios --SYN genera segmentos peque\~nos y repetidos, HTTP
+intercambia solicitudes y respuestas completas, y Slowloris sostiene
+conexiones con poco tr\'afico-- y muestra que las se\~nales SDN aportan
+tambi\'en a nivel de flujo individual.
 
 %\begin{figure}[t]
 %\centering
@@ -359,14 +383,46 @@ tr\'afico.
 %\label{fig:importancia}
 %\end{figure}
 
+\subsection{Detecci\'on temprana por ventana de tiempo}
+Sobre el dataset por ventana (una fila por segundo, 2\,960 ventanas de
+cinco corridas independientes) se evalu\'o el mismo tipo de modelo con
+validaci\'on cruzada \emph{leave-one-run-out}. El bosque aleatorio obtiene
+F1 macro = 0{,}999~$\pm$~0{,}001 y F1 binario = 1{,}000~$\pm$~0{,}000, sin
+falsos positivos en benigno; el recall por clase es 1{,}000 en
+\texttt{BENIGN}, \texttt{httpflood} y \texttt{synflood},
+0{,}998~$\pm$~0{,}003 en \texttt{icmpflood} y 0{,}996~$\pm$~0{,}004 en
+\texttt{slowloris}. Una ablaci\'on por grupos de caracter\'isticas
+(Tabla~\ref{tbl:ablacion}) separa el aporte de los contadores del portal
+(``red'') y de la telemetr\'ia OpenFlow (``SDN''): la telemetr\'ia SDN
+a\~nade $+$0{,}054 de F1 macro sobre usar s\'olo el portal, y es la que
+permite distinguir la inundaci\'on ICMP de la TCP-SYN, dos ataques que a
+nivel de contadores del portal se parecen.
+
+\begin{table}[t]
+\footnotesize
+\caption{Ablaci\'on de grupos de caracter\'isticas (bosque aleatorio, por
+ventana, \emph{leave-one-run-out}).}\label{tbl:ablacion}
+\begin{tabular}{@{}lc@{}}
+\toprule
+Grupo de caracter\'isticas & F1 macro \\
+\midrule
+S\'olo red (contadores del portal) & 0{,}945~$\pm$~0{,}104 \\
+S\'olo SDN (telemetr\'ia OpenFlow)  & 0{,}892~$\pm$~0{,}115 \\
+Todas                               & 0{,}999~$\pm$~0{,}001 \\
+\midrule
+Aporte del SDN (todas $-$ red)      & $+$0{,}054 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{Consumo del banco}
-La CPU media del contenedor fue 23\% en baseline, 26\% en SYN,
-50\% en HTTP, 523\% en Slowloris y 26\% en ICMP; en Docker, 100\%
+La CPU media del contenedor fue 40\% en baseline, 36\% en SYN,
+71\% en HTTP, 313\% en Slowloris y 35\% en ICMP; en Docker, 100\%
 equivale aproximadamente a un n\'ucleo. Slowloris ocup\'o cerca de
-cinco de los seis n\'ucleos asignados, mientras la memoria m\'axima
-observada se mantuvo por debajo de 200~MiB. Estos valores miden todo
-el banco (Mininet, OVS, Ryu, portal y generadores), no solo la
-v\'ictima.
+tres de los seis n\'ucleos asignados, mientras la memoria m\'axima
+observada se mantuvo en torno a 230~MiB (en HTTP flood). Estos valores
+miden todo el banco (Mininet, OVS, Ryu, portal y generadores), no solo
+la v\'ictima.
 
 %\begin{figure}[t]
 %\centering
@@ -376,10 +432,18 @@ v\'ictima.
 %\end{figure}
 
 \subsection{Discusi\'on}
-La prueba respalda la hip\'otesis para cuatro clases defendibles:
-el modelo supera 0,90 de F1 macro sin IP y generaliza hacia un
-laboratorio retenido. Sin embargo, el resultado no demuestra
-despliegue en una red real ni detecci\'on en l\'inea. La diferencia
+La prueba respalda la hip\'otesis para las cinco clases: el modelo
+supera 0,90 de F1 macro sin IP y generaliza hacia un laboratorio
+retenido. El F1 macro de 0{,}999 del detector por ventana debe leerse
+con cautela y no como una afirmaci\'on de rendimiento en producci\'on:
+a resoluci\'on de un segundo las ventanas de ataque presentan firmas muy
+marcadas frente al tr\'afico benigno, y la evaluaci\'on es de
+laboratorio (\emph{leave-one-run-out} sobre cinco corridas), no un
+despliegue en l\'inea sobre una red real. El resultado m\'as informativo
+no es la cifra absoluta sino la ablaci\'on: que la telemetr\'ia OpenFlow
+aporte $+$0{,}054 de F1 macro, y que sea decisiva para distinguir ICMP de
+SYN, es la evidencia concreta de que las se\~nales propias de SDN tienen
+valor discriminante que los datasets no-SDN no ofrecen. La diferencia
 entre SYN y Slowloris tambi\'en muestra por qu\'e conviene unir
 clasificaci\'on de flujo con una sonda de servicio: m\'as paquetes no
 implica necesariamente una p\'agina menos disponible.
@@ -402,17 +466,24 @@ futuro: repetir la prueba con el fondo Wireshark, un escenario mixto
 de cuatro vectores a la vez, y m\'as muestras ICMP.
 
 \subsection{Conclusiones}
-La prueba ya medida, hecha en casa dentro de Docker, es la base de
-la propuesta. En esa corrida el alumno y el ataque comparten la
-captura, el modelo no usa la IP, y en Ciencias Agrarias el F1 macro
-es \FmacroEs. Se concluye que el etiquetado por emisor permite
-conservar tr\'afico benigno dentro de la captura atacada; que el
-corte por laboratorio ofrece una prueba m\'as exigente que una
-partici\'on aleatoria; y que disponibilidad, tasa de paquetes y
-clasificaci\'on describen aspectos distintos del incidente. Solo
-Slowloris deja el portal ca\'ido. ICMP no se afirma. Con esta base se
-solicita autorizaci\'on para incorporar tr\'afico benigno real. El
-ataque de la simulaci\'on no sale del contenedor.
+Campus-DDoS-SDN es un banco de pruebas reproducible, de un solo comando y
+sin dependencia de internet en vivo, que genera un dataset DDoS multiclase
+en el que el tr\'afico benigno y cuatro vectores de ataque conviven en la
+misma captura contra un \'unico portal. El etiquetado por emisor conserva
+tr\'afico benigno dentro de la captura atacada, y la partici\'on por
+laboratorio ofrece una prueba m\'as exigente que un corte aleatorio. Sobre
+los flujos ya terminados, un bosque aleatorio entrenado sin IP, puertos ni
+tiempo alcanza un F1 macro de \FmacroEs\ en el laboratorio retenido de
+Ciencias Agrarias; sobre el dataset por ventana permite la detecci\'on
+temprana con F1 macro de 0{,}999, donde la telemetr\'ia OpenFlow aporta
+$+$0{,}054 y resulta decisiva para separar ICMP de SYN. Esto confirma el
+aporte central del trabajo: las se\~nales propias de SDN, ausentes en los
+datasets no-SDN reutilizados, tienen valor discriminante medible.
+Disponibilidad, tasa de paquetes y clasificaci\'on describen aspectos
+distintos del incidente: s\'olo Slowloris deja el portal ca\'ido pese a su
+baja tasa de paquetes. El resultado, con alumnos emulados, es la base sobre
+la que se solicita autorizaci\'on para incorporar tr\'afico benigno real de
+la UNCP, sin sacar el ataque del contenedor.
 
 \subsection{Publicaciones habilitadas por este software}
 A\'un no hay otra publicaci\'on adem\'as de este art\'iculo. El
@@ -420,10 +491,12 @@ software es el que permite esa evaluaci\'on.
 
 \section{Requisitos de software y hardware}\label{sec:requirements}
 
-El banco corre en un contenedor Ubuntu 24.04. Las versiones de la
-tabla se leyeron dentro de la imagen \texttt{ataque-sdn}. El modelo
-se entren\'o con Python 3.12.3, scikit-learn 1.9.1 y pandas 3.0.6.
-Ryu usa Python 3.9.25.
+El banco corre en un contenedor Ubuntu 24.04; las versiones de la tabla se
+leyeron dentro de la imagen \texttt{ataque-sdn}. Los modelos se entrenan al
+correr los scripts de an\'alisis (no son artefactos pre-entrenados): el
+detector reportado se obtuvo con Python 3.10.12, scikit-learn 0.23.2,
+pandas 1.3.5, numpy 1.21.5 y matplotlib 3.5.1. Ryu usa Python 3.9.25 en un
+entorno virtual separado.
 
 \begin{table}[t]
 \footnotesize
@@ -447,8 +520,11 @@ N.\textsuperscript{o} & Descripci\'on & Herramienta & Versi\'on \\
 Para repetir la corrida basta una computadora de escritorio com\'un,
 con 8 n\'ucleos y 16~GB de RAM. Docker Desktop puede instalarse en
 Windows 11 o en Ubuntu. Al contenedor se le asignan 6 CPU y 8~GB, y
-dentro corre Ubuntu 24.04. Open vSwitch trabaja en userspace
-(\texttt{datapath netdev}).
+dentro corre Ubuntu 24.04. Open vSwitch usa el \emph{datapath} de kernel
+cuando el m\'odulo \texttt{openvswitch} est\'a disponible en el host, y
+cae autom\'aticamente al \emph{datapath} userspace (\texttt{netdev}) en
+caso contrario; la telemetr\'ia de flujo refleja correctamente los floods
+sostenidos en ambos modos.
 
 \section*{Agradecimientos}
 Los autores agradecen a la Universidad Nacional del Centro del Per\'u.
