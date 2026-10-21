@@ -10,6 +10,7 @@ data/real/wireshark/**
 !data/real/wireshark/README.md
 data/real/anonimizado/
 data/processed/hibrido/
+data/_archivo_*/
 
 # Venv de Ryu: symlink que solo tiene sentido en la maquina/WSL donde
 # se genero (apunta a ~/ataque-ryu-venv). Se recrea con

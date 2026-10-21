@@ -1,0 +1,5 @@
+# Estos archivos se ejecutan en Linux (Docker/WSL). Siempre LF, aunque se
+# clonen en Windows: con CRLF, bash falla con "set: pipefail: invalid option".
+*.sh text eol=lf
+*.py text eol=lf
+Dockerfile text eol=lf

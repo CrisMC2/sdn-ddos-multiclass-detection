@@ -81,7 +81,7 @@ run_one() {
     -e RUN_TAG -e RUN_SEED \
     -e SYN_PPS -e ICMP_PPS -e HTTP_FLOOD_WORKERS -e HTTP_FLOOD_PAUSE \
     -e SLOWLORIS_CONNS -e BROWSE_PAUSE_MIN -e BROWSE_PAUSE_MAX \
-    -e SDN_POLL_INTERVAL \
+    -e SDN_POLL_INTERVAL -e ONSET_S -e MACHINE_TAG \
     -p "127.0.0.1:${BENIGN_PORT}:${BENIGN_PORT}" \
     -v "$ROOT/data:/ataque/data" \
     -v "$ROOT/scripts/mininet:/ataque/mininet:ro" \

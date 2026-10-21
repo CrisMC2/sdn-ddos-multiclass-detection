@@ -14,6 +14,7 @@ Uso (con Ryu ya en 127.0.0.1:6653):
 import csv
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -39,11 +40,12 @@ from roles import (
     VICTIM_IP,
     VICTIM_NAME,
     bots,
+    onset_for,
     run_config,
     students,
     tagged,
 )
-from topo import build
+from topo import build, use_kernel_dp
 
 PROBE = 'salud-u1'
 
@@ -109,7 +111,12 @@ def _hping_flag(pps):
 
 
 def start_browse(host):
-    host.cmd('sh /tmp/browse.sh > /tmp/%s.browse.log 2>&1 &' % host.name)
+    """Arranca el bucle de navegacion y devuelve su PID (para poder pararlo
+    solo en esa PC: los hosts de Mininet comparten el espacio de PIDs, un
+    pkill por nombre mataria el de todos)."""
+    out = host.cmd('sh /tmp/browse.sh > /tmp/%s.browse.log 2>&1 & echo PID:$!' % host.name)
+    found = re.search(r'PID:(\d+)', out or '')
+    return found.group(1) if found else ''
 
 
 def start_attack(host, scenario, victim, duration):
@@ -217,13 +224,16 @@ def main():
 
     scenario = sys.argv[1]
     duration = int(sys.argv[2]) if len(sys.argv) > 2 else 120
-    name = tagged(scenario)
-    out = os.path.abspath(sys.argv[3]) if len(sys.argv) > 3 else os.path.join(raw_dir(), '%s.pcap' % name)
+    # run_name y no "name": los bucles de hosts de mas abajo reutilizan "name".
+    run_name = tagged(scenario)
+    out = os.path.abspath(sys.argv[3]) if len(sys.argv) > 3 else os.path.join(raw_dir(), '%s.pcap' % run_name)
     os.makedirs(os.path.dirname(out), exist_ok=True)
-    metrics_path = os.path.join(metrics_dir(), '%s_interno.csv' % name)
+    metrics_path = os.path.join(metrics_dir(), '%s_interno.csv' % run_name)
     meta_path = os.path.splitext(out)[0] + '.meta.json'
-    tmp_out = '/tmp/%s.pcap' % name
+    tmp_out = '/tmp/%s.pcap' % run_name
 
+    # Segundo en que arranca el ataque (0 en baseline: no hay ataque).
+    onset = 0 if scenario == 'baseline' else onset_for(duration)
     meta = {
         'scenario': scenario,
         'victim': VICTIM_IP,
@@ -231,10 +241,22 @@ def main():
         'bots': [ip for _name, ip in bots()],
         'benign_client': BENIGN_CLIENT_IP,
         'pages': list(PAGES),
+        'duration_s': duration,
+        'onset_planned_s': onset,
+        'datapath': 'kernel' if use_kernel_dp() else 'userspace',
+        # Se llenan cuando arranca el ataque; baseline los deja en None.
+        # Los flujos y ventanas se etiquetan como ataque solo desde aqui.
+        'capture_start_ts': None,
+        'attack_start_ts': None,
+        'attack_start_elapsed': None,
     }
     meta.update(run_config())
-    with open(meta_path, 'w') as fh:
-        json.dump(meta, fh, indent=2)
+
+    def write_meta():
+        with open(meta_path, 'w') as fh:
+            json.dump(meta, fh, indent=2)
+
+    write_meta()
 
     setLogLevel('info')
     info('*** Escenario %s durante %ss\n' % (scenario, duration))
@@ -262,19 +284,40 @@ def main():
         for name, _ip in students():
             start_browse(net.get(name))
 
-        if scenario == 'baseline':
-            info('*** PCs infectadas tambien navegan: todavia no hay ataque\n')
+        # Todas las PCs infectadas arrancan navegando como cualquier alumno.
+        # En un ataque dejan de navegar y atacan recien en el segundo `onset`.
+        info('*** PCs infectadas navegando como alumnos (todavia sin ataque)\n')
+        bot_browse = {}
+        for name, _ip in bots():
+            bot_browse[name] = start_browse(net.get(name))
+
+        def launch_attack(elapsed_now):
+            """La orden del C2: las infectadas dejan de navegar y atacan.
+            Devuelve el instante (epoch) desde el cual su trafico es ataque."""
             for name, _ip in bots():
-                start_browse(net.get(name))
-        else:
+                pid = bot_browse.get(name)
+                if pid:
+                    net.get(name).cmd('kill %s 2>/dev/null || true' % pid)
+            attack_ts = time.time()
+            # Antes el C2 hacia ping a cada infectada para "ordenar" el ataque:
+            # eso metia 10 entradas nuevas a la tabla OpenFlow justo en el
+            # instante del cambio de etiqueta, y sdn_core_flows terminaba
+            # separando BENIGN/ataque por ese ping, no por el trafico real.
+            # El C2 sigue en la topologia (es quien controla las infectadas),
+            # pero ya no genera trafico propio al arrancar el ataque.
             info('*** C2 (%s) ordena el ataque a las PCs infectadas\n' % C2_NAME)
-            c2 = net.get(C2_NAME)
-            for _name, ip in bots():
-                c2.cmd('ping -c 1 -W 1 %s >/dev/null 2>&1 &' % ip)
-            time.sleep(2)
-            info('*** Ataque %s desde %d PCs hacia %s\n' % (scenario, len(meta['bots']), VICTIM_IP))
+            info('*** Ataque %s desde %d PCs hacia %s (segundo %d de %d)\n' % (
+                scenario, len(meta['bots']), VICTIM_IP, elapsed_now, duration))
             for name, _ip in bots():
-                start_attack(net.get(name), scenario, VICTIM_IP, duration)
+                start_attack(net.get(name), scenario, VICTIM_IP, max(duration - elapsed_now, 1))
+            meta['attack_start_ts'] = attack_ts
+            meta['attack_start_elapsed'] = elapsed_now + 1
+            write_meta()
+
+        attack_pending = scenario != 'baseline'
+        if attack_pending and onset == 0:
+            launch_attack(0)
+            attack_pending = False
 
         header = [
             'timestamp', 'elapsed_s', 'probe_http_code', 'probe_latency_ms',
@@ -297,6 +340,8 @@ def main():
             writer = csv.writer(fh)
             writer.writerow(header)
             deadline = time.time() + duration
+            meta['capture_start_ts'] = time.time()
+            write_meta()
             elapsed = 0
             while time.time() < deadline:
                 elapsed += 1
@@ -339,6 +384,11 @@ def main():
                     _conns(www), flows, benign_pps, benign_bps,
                 ])
                 fh.flush()
+                # El ataque arranca al final de la muestra `onset`: la muestra
+                # siguiente es la primera que ya contiene trafico de ataque.
+                if attack_pending and elapsed >= onset:
+                    launch_attack(elapsed)
+                    attack_pending = False
                 remain = 1.0 - (time.time() - sample_started)
                 if remain > 0:
                     time.sleep(min(remain, max(0.0, deadline - time.time())))
@@ -347,7 +397,7 @@ def main():
         avg_latency = ('%.1f' % (sum(latencies) / len(latencies))) if latencies else ''
         avg_pps = ('%.1f' % (sum(pps_values) / len(pps_values))) if pps_values else ''
         row = {
-            'scenario': name,
+            'scenario': run_name,
             'duration_s': duration,
             'samples': samples,
             'http_200': ok_n,
