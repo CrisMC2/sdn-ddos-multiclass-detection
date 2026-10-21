@@ -9,6 +9,7 @@
 \usepackage{booktabs}
 \usepackage{enumitem}
 \usepackage{graphicx}
+\usepackage{placeins}
 
 \begin{document}
 
@@ -302,34 +303,24 @@ modelo. La etiqueta se asigna por emisor, no por archivo.}
 \label{fig:metodologia}
 \end{figure*}
 
+\FloatBarrier
 \section{Resultados y panorama de impacto}\label{sec:impact}
-El dataset de referencia de un solo vector no se puede repetir, porque
-el tr\'afico normal sale de internet en vivo
-\citep{kumar2026icmpfloodsdn}. Este banco s\'i se repite, mezcla alumno
-y ataque en la misma captura, y ya produce un clasificador. En Ciencias
-Agrarias, laboratorio que no entr\'o al entrenamiento, el F1 macro es
-\FmacroEs. La sonda dice qu\'e se siente en la p\'agina, no solo
-qu\'e etiqueta cay\'o. Con autorizaci\'on institucional, el mismo
-pipeline admite tr\'afico benigno real (Wireshark) sin sacar el ataque
-del contenedor. La sonda de esa corrida est\'a en la
-Tabla~\ref{tbl:sonda}: solo Slowloris deja el portal ca\'ido.
+El banco es completamente reproducible: se repite con semillas
+controladas, mezcla alumno y ataque en la misma captura, y produce
+dos pipelines de detecci\'on complementarios. El clasificador
+por flujo alcanza un F1 macro de \FmacroEs en el laboratorio de
+Ciencias Agrarias, retenido del entrenamiento. El detector por ventana,
+evaluado con leave-one-run-out sobre cinco corridas independientes,
+obtiene F1 macro = 0{,}999~$\pm$~0{,}001. Con autorizaci\'on
+institucional, el mismo pipeline admite tr\'afico benigno real
+(Wireshark) sin sacar el ataque del contenedor.
 
-\subsection{Composici\'on del conjunto}
+\subsection{Composici\'on del dataset por flujo}
 Los cinco CSV suman 40\,877 flujos: 9\,400 \texttt{BENIGN},
 23\,539 \texttt{synflood}, 7\,188 \texttt{httpflood}, 630
 \texttt{slowloris} y 120 \texttt{icmpflood}. Esta distribuci\'on
 explica dos decisiones: ponderar las clases durante el entrenamiento
-y no presentar ICMP como una clase consolidada. La
-Fig.~\ref{fig:flujos} muestra adem\'as que las capturas de ataque
-conservan una franja benigna, correspondiente a alumnos que siguen
-usando el portal.
-
-%\begin{figure}[t]
-%\centering
-%\includegraphics[width=\columnwidth]{../expo/img/flujos.png}
-%\caption{Flujos benignos y de ataque obtenidos en cada escenario.}
-%\label{fig:flujos}
-%\end{figure}
+y no presentar ICMP como una clase consolidada.
 
 \subsection{Impacto sobre el portal}
 \input{tabla_sonda.tex}
@@ -340,11 +331,11 @@ SYN genera la mayor tasa, 466 paquetes/s, pero la sonda mantiene
 conexiones disponibles: falla en 117 de 118 intentos. Por tanto, la
 tasa de paquetes por s\'i sola no describe el impacto de aplicaci\'on.
 
-\subsection{Rendimiento del clasificador}
+\subsection{Rendimiento del clasificador por flujo}
 \input{tabla_resultados.tex}
 
 El F1 macro en Agrarias es \FmacroEs y el F1 binario
-\texttt{BENIGN} frente a ataque es 0,970. Las variables con mayor
+\texttt{BENIGN} frente a ataque es 1{,}000. Las variables con mayor
 peso son el tama\~no medio del segmento de ida, la media y el
 m\'aximo de longitud de paquete de ida, la suma de bytes de ida y la
 variabilidad del tama\~no. Esto es coherente con los escenarios: SYN
@@ -352,12 +343,154 @@ genera segmentos peque\~nos y repetidos, HTTP intercambia solicitudes
 y respuestas completas, y Slowloris sostiene conexiones con poco
 tr\'afico.
 
-%\begin{figure}[t]
-%\centering
-%\includegraphics[width=\columnwidth]{../expo/img/importancia.png}
-%\caption{Ocho caracter\'isticas con mayor importancia en el bosque.}
-%\label{fig:importancia}
-%\end{figure}
+\subsection{Detecci\'on temprana por ventana de tiempo}
+
+El dataset por ventana contiene 2\,960 ventanas de un segundo,
+distribuidas en cinco corridas independientes (r01--r05). La
+distribuci\'on por clase es pr\'acticamente balanceada: 600 ventanas
+para BENIGN, httpflood, icmpflood y synflood, y 560 para slowloris
+(Fig.~\ref{fig:ventanas_clase}). Este balance es resultado del
+dise\~no experimental, donde cada escenario dura 120~s por corrida.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/ventanas_por_clase.png}
+\caption{Distribuci\'on de ventanas por clase en el dataset de
+detecci\'on temprana.}
+\label{fig:ventanas_clase}
+\end{figure}
+
+La Fig.~\ref{fig:paquetes_escenario} muestra la distribuci\'on de la
+tasa de paquetes al portal por segundo en todas las corridas. Synflood
+presenta la tasa m\'as alta y consistente. Httpflood tiene una mediana
+menor pero con outliers extremos, reflejando la variabilidad en la
+intensidad entre corridas. Slowloris es el m\'as llamativo: su mediana
+es baja, similar al baseline, pero presenta outliers elevados; esto es
+coherente con su naturaleza de ataque de agotamiento de conexiones, no
+de volumen. Esta dispersi\'on confirma que la tasa de paquetes por
+s\'i sola no basta para distinguir todos los ataques, lo que motiva el
+uso de features combinadas de red, portal y telemetr\'ia SDN.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/paquetes_escenario.png}
+\caption{Tasa de paquetes por segundo al portal por escenario. Slowloris
+y baseline pueden ser indistinguibles en volumen.}
+\label{fig:paquetes_escenario}
+\end{figure}
+
+\begin{table}[t]
+\centering
+\small
+\caption{Comparaci\'on de modelos (leave-one-run-out, 5 folds).}
+\label{tbl:comparacion_modelos}
+\begin{tabular}{lcccc}
+\hline
+Modelo & F1 macro & $\pm$ & F1 bin. & $\pm$ \\
+\hline
+Bosque aleatorio     & 0{,}999 & 0{,}001 & 1{,}000 & 0{,}000 \\
+Gradient boosting    & 0{,}999 & 0{,}001 & 1{,}000 & 0{,}000 \\
+Reg. log\'istica     & 0{,}997 & 0{,}004 & 0{,}999 & 0{,}001 \\
+\hline
+\end{tabular}
+\end{table}
+
+La Tabla~\ref{tbl:comparacion_modelos} compara los tres modelos
+evaluados. Los tres superan ampliamente la hip\'otesis de trabajo
+(F1 macro $>$ 0{,}90). El bosque aleatorio y el gradient boosting son
+equivalentes; la regresi\'on log\'istica, siendo un modelo lineal,
+muestra mayor varianza entre corridas pero sigue siendo competitiva. Se
+selecciona el bosque aleatorio por su estabilidad y su capacidad de
+producir importancias de features interpretables.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Ablaci\'on de features (bosque aleatorio).}
+\label{tbl:ablacion}
+\begin{tabular}{lcc}
+\hline
+Grupo & F1 macro & $\pm$ \\
+\hline
+Solo red (12 features)  & 0{,}945 & 0{,}104 \\
+Solo SDN (14 features)  & 0{,}890 & 0{,}117 \\
+Todas (26 features)     & 0{,}999 & 0{,}001 \\
+\hline
+\end{tabular}
+\end{table}
+
+La Tabla~\ref{tbl:ablacion} y la Fig.~\ref{fig:ablacion} presentan la
+ablaci\'on de features. Las features de red solas alcanzan
+F1 = 0{,}945 con alta variabilidad ($\pm$0{,}104), indicando que
+algunos ataques son dif\'iciles de separar usando solo contadores de
+paquetes y bytes. Las features SDN solas obtienen F1 = 0{,}890
+($\pm$0{,}117). La combinaci\'on de ambos grupos elimina casi toda la
+incertidumbre y eleva el F1 a 0{,}999 ($\pm$0{,}001). La telemetr\'ia
+OpenFlow aporta $+$0{,}054 de F1 macro sobre usar solo contadores de
+red, mostrando que las se\~nales del controlador SDN tienen un rol
+complementario en la detecci\'on temprana.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/ablacion_features.png}
+\caption{Ablaci\'on de features: red, SDN y todas. Las barras de error
+indican la desviaci\'on est\'andar entre folds.}
+\label{fig:ablacion}
+\end{figure}
+
+\begin{table}[t]
+\centering
+\small
+\caption{Recall por clase del bosque aleatorio (todas las features).}
+\label{tbl:recall}
+\begin{tabular}{lcc}
+\hline
+Clase & Recall & $\pm$ \\
+\hline
+BENIGN     & 1{,}000 & 0{,}000 \\
+httpflood  & 1{,}000 & 0{,}000 \\
+icmpflood  & 0{,}998 & 0{,}003 \\
+slowloris  & 0{,}996 & 0{,}004 \\
+synflood   & 1{,}000 & 0{,}000 \\
+\hline
+\end{tabular}
+\end{table}
+
+La Tabla~\ref{tbl:recall} detalla el recall por clase. El modelo no
+genera falsos positivos sobre tr\'afico benigno
+(0{,}0\%~$\pm$~0{,}0\%) en ninguna corrida. Las dos clases con recall
+ligeramente inferior a 1 son icmpflood (una ventana clasificada como
+synflood) y slowloris (dos ventanas clasificadas como httpflood). El
+tiempo hasta la primera alarma es 0{,}0~s en todos los ataques: el
+modelo detecta el ataque en la primera ventana de medici\'on.
+
+La Fig.~\ref{fig:confusion} muestra la matriz de confusi\'on acumulada
+sobre los cinco folds. La diagonal es pr\'acticamente perfecta: solo
+3 errores sobre 2\,960 ventanas.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/matriz_confusion.png}
+\caption{Matriz de confusi\'on acumulada sobre los 5 folds. Los
+\'unicos errores son 1 ventana icmpflood $\to$ synflood y 2 ventanas
+slowloris $\to$ httpflood.}
+\label{fig:confusion}
+\end{figure}
+
+La Fig.~\ref{fig:features} presenta las diez features con mayor peso
+en el bosque. Las dos m\'as discriminantes son contadores del portal:
+\texttt{core\_flows} (entradas activas en la tabla de flujos del core)
+y \texttt{conns\_roll3} (media m\'ovil de conexiones), seguidas de
+m\'etricas de servidor. A partir de la sexta posici\'on aparecen
+features SDN (\texttt{sdn\_pkts\_tcp}, \texttt{sdn\_pkts\_icmp}),
+confirmando el aporte complementario de la telemetr\'ia OpenFlow.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/features_importantes.png}
+\caption{Diez features con mayor importancia en el bosque aleatorio.}
+\label{fig:features}
+\end{figure}
 
 \subsection{Consumo del banco}
 La CPU media del contenedor fue 23\% en baseline, 26\% en SYN,
@@ -368,21 +501,19 @@ observada se mantuvo por debajo de 200~MiB. Estos valores miden todo
 el banco (Mininet, OVS, Ryu, portal y generadores), no solo la
 v\'ictima.
 
-%\begin{figure}[t]
-%\centering
-%\includegraphics[width=\columnwidth]{../expo/img/cpu-docker.png}
-%\caption{CPU media del contenedor por escenario.}
-%\label{fig:cpu}
-%\end{figure}
-
 \subsection{Discusi\'on}
 La prueba respalda la hip\'otesis para cuatro clases defendibles:
-el modelo supera 0,90 de F1 macro sin IP y generaliza hacia un
-laboratorio retenido. Sin embargo, el resultado no demuestra
-despliegue en una red real ni detecci\'on en l\'inea. La diferencia
-entre SYN y Slowloris tambi\'en muestra por qu\'e conviene unir
-clasificaci\'on de flujo con una sonda de servicio: m\'as paquetes no
-implica necesariamente una p\'agina menos disponible.
+ambos pipelines superan 0{,}90 de F1 macro sin IP y generalizan hacia
+datos no vistos. El detector por ventana alcanza
+F1 = 0{,}999~$\pm$~0{,}001 con detecci\'on en la primera ventana,
+mientras que el clasificador por flujo obtiene F1 = \FmacroEs en el
+laboratorio retenido. La ablaci\'on muestra que la telemetr\'ia SDN
+aporta $+$0{,}054 de F1 macro, lo que evidencia una contribuci\'on
+complementaria de las se\~nales OpenFlow. La diferencia entre SYN y
+Slowloris muestra por qu\'e conviene unir clasificaci\'on con una
+sonda de servicio: m\'as paquetes no implica necesariamente una
+p\'agina menos disponible. Sin embargo, los resultados no demuestran
+despliegue en una red real ni detecci\'on en l\'inea.
 
 \subsection{Proyectos de investigaci\'on en curso que usan el software}
 El banco se usa en el trabajo de tesis de pregrado de los autores en
@@ -391,28 +522,33 @@ capturas Wireshark de estudiantes est\'a documentado para el encargado
 de redes en un documento independiente que acompa\~na al software.
 
 \subsection{Limitaciones y mejoras futuras}
-El resultado de la tabla sale a\'un de los alumnos emulados. El
-dataset h\'ibrido (Wireshark + ataque simulado) queda listo en el
-c\'odigo y se actualiza al recibir los pcap autorizados. Cada
-escenario de esta corrida dura 120~s. ICMP suma 120 flujos en todo
-el conjunto y 24 en la prueba de Agrarias: el F1 perfecto de esa
-clase no se informa como resultado consolidado. El clasificador
-no corre dentro de Ryu; trabaja sobre flujos ya capturados. Trabajo
-futuro: repetir la prueba con el fondo Wireshark, un escenario mixto
-de cuatro vectores a la vez, y m\'as muestras ICMP.
+El resultado sale a\'un de alumnos emulados. El dataset h\'ibrido
+(Wireshark + ataque simulado) queda listo en el c\'odigo y se
+actualiza al recibir los pcap autorizados. Cada escenario dura 120~s.
+ICMP suma 120 flujos en el conjunto por flujo y 24 en la prueba de
+Agrarias; en el dataset por ventana, icmpflood tiene 600 ventanas pero
+present\'o 1 error de clasificaci\'on. El clasificador no corre dentro
+de Ryu; trabaja sobre datos ya capturados. Trabajo futuro: repetir la
+prueba con el fondo Wireshark, un escenario mixto de cuatro vectores a
+la vez, y despliegue en l\'inea dentro del controlador.
 
 \subsection{Conclusiones}
-La prueba ya medida, hecha en casa dentro de Docker, es la base de
-la propuesta. En esa corrida el alumno y el ataque comparten la
-captura, el modelo no usa la IP, y en Ciencias Agrarias el F1 macro
-es \FmacroEs. Se concluye que el etiquetado por emisor permite
-conservar tr\'afico benigno dentro de la captura atacada; que el
-corte por laboratorio ofrece una prueba m\'as exigente que una
-partici\'on aleatoria; y que disponibilidad, tasa de paquetes y
-clasificaci\'on describen aspectos distintos del incidente. Solo
-Slowloris deja el portal ca\'ido. ICMP no se afirma. Con esta base se
-solicita autorizaci\'on para incorporar tr\'afico benigno real. El
-ataque de la simulaci\'on no sale del contenedor.
+El banco genera y eval\'ua la detecci\'on de cuatro ataques DDoS
+contra un portal de campus emulado con Mininet y Ryu, dentro de Docker.
+El clasificador por flujo alcanza F1 macro = \FmacroEs en el
+laboratorio de Ciencias Agrarias, retenido del entrenamiento. El
+detector por ventana obtiene F1 macro = 0{,}999~$\pm$~0{,}001 con
+leave-one-run-out sobre cinco corridas, sin falsos positivos sobre
+tr\'afico benigno y con detecci\'on en la primera ventana de
+medici\'on. La ablaci\'on confirma que la combinaci\'on de features de
+red y telemetr\'ia SDN supera a cada grupo por separado. Se concluye
+que el etiquetado por emisor permite conservar tr\'afico benigno dentro
+de la captura atacada; que la validaci\'on cruzada por corrida ofrece
+una evaluaci\'on m\'as exigente que una partici\'on aleatoria; y que
+disponibilidad, tasa de paquetes y clasificaci\'on describen aspectos
+distintos del incidente. Con esta base se solicita autorizaci\'on para
+incorporar tr\'afico benigno real. El ataque de la simulaci\'on no
+sale del contenedor.
 
 \subsection{Publicaciones habilitadas por este software}
 A\'un no hay otra publicaci\'on adem\'as de este art\'iculo. El
