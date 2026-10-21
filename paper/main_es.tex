@@ -441,7 +441,7 @@ producir importancias de features interpretables.
 Grupo & F1 macro & $\pm$ \\
 \hline
 Solo red (12 features)  & 0{,}945 & 0{,}104 \\
-Solo SDN (14 features)  & 0{,}890 & 0{,}117 \\
+Solo SDN (14 features)  & 0{,}892 & 0{,}115 \\
 Todas (26 features)     & 0{,}999 & 0{,}001 \\
 \hline
 \end{tabular}
@@ -451,8 +451,8 @@ La Tabla~\ref{tbl:ablacion} y la Fig.~\ref{fig:ablacion} presentan la
 ablaci\'on de features. Las features de red solas alcanzan
 F1 = 0{,}945 con alta variabilidad ($\pm$0{,}104), indicando que
 algunos ataques son dif\'iciles de separar usando solo contadores de
-paquetes y bytes. Las features SDN solas obtienen F1 = 0{,}890
-($\pm$0{,}117). La combinaci\'on de ambos grupos elimina casi toda la
+paquetes y bytes. Las features SDN solas obtienen F1 = 0{,}892
+($\pm$0{,}115). La combinaci\'on de ambos grupos elimina casi toda la
 incertidumbre y eleva el F1 a 0{,}999 ($\pm$0{,}001). La telemetr\'ia
 OpenFlow aporta $+$0{,}054 de F1 macro sobre usar solo contadores de
 red, mostrando que las se\~nales del controlador SDN tienen un rol
@@ -507,8 +507,9 @@ slowloris $\to$ httpflood.}
 
 La Fig.~\ref{fig:features} presenta las diez features con mayor peso
 en el bosque. Las dos m\'as discriminantes son contadores del portal:
-\texttt{core\_flows} (entradas activas en la tabla de flujos del core)
-y \texttt{conns\_roll3} (media m\'ovil de conexiones), seguidas de
+\texttt{conns\_roll3} (media m\'ovil de conexiones) y
+\texttt{core\_flows} (entradas activas en la tabla de flujos del core),
+seguidas de
 m\'etricas de servidor. A partir de la sexta posici\'on aparecen
 features SDN (\texttt{sdn\_pkts\_tcp}, \texttt{sdn\_pkts\_icmp}),
 confirmando el aporte complementario de la telemetr\'ia OpenFlow.
@@ -520,6 +521,7 @@ confirmando el aporte complementario de la telemetr\'ia OpenFlow.
 \label{fig:features}
 \end{figure}
 
+\FloatBarrier
 \subsection{Consumo del banco}
 La CPU media del contenedor fue 40\% en baseline, 36\% en SYN,
 71\% en HTTP, 313\% en Slowloris y 35\% en ICMP; en Docker, 100\%
@@ -587,6 +589,7 @@ la UNCP, sin sacar el ataque del contenedor.
 A\'un no hay otra publicaci\'on adem\'as de este art\'iculo. El
 software es el que permite esa evaluaci\'on.
 
+\FloatBarrier
 \section{Requisitos de software y hardware}\label{sec:requirements}
 
 El banco corre en un contenedor Ubuntu 24.04; las versiones de la tabla se
