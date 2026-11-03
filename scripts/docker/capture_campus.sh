@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Levanta Ryu y corre un escenario del campus, o solo la prueba de caminos.
-# Uso: capture_campus.sh <verify|baseline|synflood|httpflood|slowloris|icmpflood> [segundos]
+# Uso: capture_campus.sh <verify|escenario de scripts/mininet/scenarios.txt> [segundos]
 set -euo pipefail
 cd "$(dirname "$0")"
 
-SCENARIO="${1:?Uso: capture_campus.sh <verify|baseline|synflood|httpflood|slowloris|icmpflood> [segundos]}"
+SCENARIO="${1:?Uso: capture_campus.sh <verify|escenario de ../mininet/scenarios.txt> [segundos]}"
 DURATION="${2:-120}"
 export DATA_DIR="${DATA_DIR:-/ataque/data}"
 export PYTHONDONTWRITEBYTECODE=1

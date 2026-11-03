@@ -1,0 +1,15 @@
+# Registro unico de escenarios. Una linea por escenario, en el orden en que
+# corren "all" y "repeat". Lo leen roles.py (Python, adentro y afuera de
+# Docker) y run_scenario.sh/capture_campus.sh (bash, no dependen de Python
+# en el host). Agregar un ataque es agregar una linea aqui + su generador en
+# capture_campus.py (_install_scripts/start_attack) + su rate en roles.py.
+# '#' y lineas vacias se ignoran.
+
+baseline
+synflood
+httpflood
+slowloris
+icmpflood
+udpflood
+ackflood
+slowpost

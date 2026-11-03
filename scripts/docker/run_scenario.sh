@@ -24,8 +24,15 @@ IMAGE="${IMAGE:-ataque-sdn}"
 NAME="ataque-sdn-run"
 BENIGN_PORT="${BENIGN_PORT:-8080}"
 
+# Registro unico de escenarios (scripts/mininet/scenarios.txt). roles.py lo
+# lee igual adentro del contenedor; asi un ataque nuevo se agrega en un solo
+# lugar en vez de en cada script.
+mapfile -t SCENARIOS < <(grep -vE '^[[:space:]]*#|^[[:space:]]*$' "$ROOT/scripts/mininet/scenarios.txt")
+
 usage() {
-  echo "Uso: bash scripts/docker/run_scenario.sh <verify|baseline|synflood|httpflood|slowloris|icmpflood|all|repeat|convert> [segundos]" >&2
+  local list
+  list="$(IFS='|'; echo "${SCENARIOS[*]}")"
+  echo "Uso: bash scripts/docker/run_scenario.sh <verify|$list|all|repeat|convert> [segundos]" >&2
   echo "     repeat <N> [segundos]: N corridas con semilla e intensidades distintas (para media +/- desviacion)" >&2
   exit 1
 }
@@ -112,6 +119,8 @@ run_one() {
     -e RUN_TAG -e RUN_SEED \
     -e SYN_PPS -e ICMP_PPS -e HTTP_FLOOD_WORKERS -e HTTP_FLOOD_PAUSE \
     -e SLOWLORIS_CONNS -e BROWSE_PAUSE_MIN -e BROWSE_PAUSE_MAX \
+    -e UDP_PPS -e ACK_PPS -e SLOWPOST_CONNS \
+    -e STUDENTS_PER_AREA -e BOTS_PER_AREA \
     -e SDN_POLL_INTERVAL -e ONSET_S -e MACHINE_TAG \
     -e OVS_DATAPATH \
     -p "127.0.0.1:${BENIGN_PORT}:${BENIGN_PORT}" \
@@ -179,7 +188,7 @@ case "$SCENARIO" in
     run_convert
     ;;
   all)
-    for s in baseline synflood httpflood slowloris icmpflood; do
+    for s in "${SCENARIOS[@]}"; do
       run_one "$s" "$DURATION"
     done
     ;;
@@ -202,17 +211,25 @@ case "$SCENARIO" in
       export HTTP_FLOOD_WORKERS="$(awk -v s="$((seed+2))" 'BEGIN{srand(s); print 3+int(rand()*4)}')"
       export SLOWLORIS_CONNS="$(awk -v s="$((seed+3))"    'BEGIN{srand(s); print 15+int(rand()*16)}')"
       echo "########## corrida $tag (seed=$seed): SYN_PPS=$SYN_PPS ICMP_PPS=$ICMP_PPS HTTP_FLOOD_WORKERS=$HTTP_FLOOD_WORKERS SLOWLORIS_CONNS=$SLOWLORIS_CONNS ##########"
-      for s in baseline synflood httpflood slowloris icmpflood; do
+      for s in "${SCENARIOS[@]}"; do
         run_one "$s" "$dur"
       done
     done
     echo "Listo: $runs corridas. Ahora pasa los pcap a CSV:"
     echo "  bash scripts/docker/run_scenario.sh convert"
     ;;
-  verify|baseline|synflood|httpflood|slowloris|icmpflood)
+  verify)
     run_one "$SCENARIO" "$DURATION"
     ;;
   *)
-    usage
+    is_scenario=0
+    for s in "${SCENARIOS[@]}"; do
+      [ "$SCENARIO" = "$s" ] && is_scenario=1 && break
+    done
+    if [ "$is_scenario" = 1 ]; then
+      run_one "$SCENARIO" "$DURATION"
+    else
+      usage
+    fi
     ;;
 esac

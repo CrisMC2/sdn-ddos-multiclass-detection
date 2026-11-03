@@ -33,9 +33,6 @@ AREAS = (
     ('agr', '10.5.0', 'Ciencias Agrarias'),
 )
 
-STUDENTS_PER_AREA = 4
-BOTS_PER_AREA = 2
-
 # Paginas del portal. Los alumnos no salen a internet: recorren esto.
 PAGES = ('/', '/login', '/notas', '/aula', '/biblioteca')
 
@@ -59,6 +56,19 @@ def _env_int(name, default):
         return int(default)
 
 
+def _env_capped(name, default, lo, hi):
+    """Como _env_int, pero recorta al rango [lo, hi]. Evita que mas alumnos
+    que infectadas por area choquen de IP: los alumnos usan .10+i y las
+    infectadas .20+i, asi que ninguno de los dos puede pasar de 9 por area
+    sin invadir el rango del otro."""
+    val = _env_int(name, default)
+    return max(lo, min(hi, val))
+
+
+STUDENTS_PER_AREA = _env_capped('STUDENTS_PER_AREA', 4, 1, 9)
+BOTS_PER_AREA = _env_capped('BOTS_PER_AREA', 2, 1, 9)
+
+
 # Etiqueta de corrida (sufijo de los archivos) y semilla registrada. Sin
 # RUN_TAG los nombres de archivo quedan como antes (compatibilidad).
 RUN_TAG = os.environ.get('RUN_TAG', '').strip()
@@ -71,6 +81,9 @@ HTTP_FLOOD_WORKERS = _env_int('HTTP_FLOOD_WORKERS', 4)
 SYN_PPS = _env_int('SYN_PPS', 20)
 ICMP_PPS = _env_int('ICMP_PPS', 20)
 SLOWLORIS_CONNS = _env_int('SLOWLORIS_CONNS', 20)
+UDP_PPS = _env_int('UDP_PPS', 20)
+ACK_PPS = _env_int('ACK_PPS', 20)
+SLOWPOST_CONNS = _env_int('SLOWPOST_CONNS', 20)
 
 # Segundo en que arranca el ataque dentro de una corrida de ataque. Antes de
 # eso las PCs infectadas navegan igual que los alumnos (todo es BENIGN); a
@@ -104,6 +117,11 @@ def run_config():
         'syn_pps': SYN_PPS,
         'icmp_pps': ICMP_PPS,
         'slowloris_conns': SLOWLORIS_CONNS,
+        'udp_pps': UDP_PPS,
+        'ack_pps': ACK_PPS,
+        'slowpost_conns': SLOWPOST_CONNS,
+        'students_per_area': STUDENTS_PER_AREA,
+        'bots_per_area': BOTS_PER_AREA,
     }
 
 
@@ -112,7 +130,21 @@ def tagged(scenario):
     return '%s__%s' % (scenario, RUN_TAG) if RUN_TAG else scenario
 
 
-SCENARIOS = ('baseline', 'synflood', 'httpflood', 'slowloris', 'icmpflood')
+def _load_scenarios():
+    """Lee scripts/mininet/scenarios.txt, el registro unico de escenarios.
+    Vive junto a este archivo a proposito: esa carpeta se copia entera a
+    /ataque/mininet en la imagen Docker, asi que la misma ruta relativa
+    funciona adentro y afuera del contenedor sin distinguir el entorno."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'scenarios.txt')
+    try:
+        with open(path) as fh:
+            lines = [ln.strip() for ln in fh]
+    except OSError:
+        return ('baseline', 'synflood', 'httpflood', 'slowloris', 'icmpflood')
+    return tuple(ln for ln in lines if ln and not ln.startswith('#'))
+
+
+SCENARIOS = _load_scenarios()
 
 # Mininet solo calcula el dpid si el switch se llama s1, s2, ...
 CORE_SWITCH = 's1'

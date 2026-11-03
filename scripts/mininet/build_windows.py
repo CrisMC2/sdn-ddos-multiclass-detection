@@ -30,8 +30,7 @@ import math
 import os
 
 from paths import metrics_dir, processed_dir, raw_dir
-
-SCENARIOS = ('baseline', 'synflood', 'httpflood', 'slowloris', 'icmpflood')
+from roles import SCENARIOS
 
 # Columnas de referencia (NO son features: el entrenamiento las descarta).
 REF_FIELDS = ['timestamp', 'elapsed_s', 'scenario', 'run']
@@ -52,14 +51,16 @@ DERIVED_FIELDS = [
 ]
 
 # Features de la vista SDN del controlador (0 si no hay _sdn.csv).
-# Las *_icmp / *_tcp son la clave para separar icmpflood de synflood: el
-# protocolo solo se ve en la telemetria del controlador, no en los
-# contadores del portal (que ven igual los dos floods).
+# Las *_icmp / *_tcp / *_udp son la clave para separar floods que se ven
+# igual en los contadores del portal pero usan protocolos distintos (p.ej.
+# icmpflood vs synflood, o udpflood vs los dos): el protocolo solo se ve en
+# la telemetria del controlador, no en el portal.
 SDN_FIELDS = [
     'sdn_flows_total', 'sdn_src_total', 'sdn_delta_pkts', 'sdn_delta_bytes',
     'sdn_src_entropy', 'sdn_src_entropy_norm', 'sdn_max_src_share',
     'sdn_mean_pkts_per_flow',
-    'sdn_pkts_icmp', 'sdn_pkts_tcp', 'sdn_frac_icmp', 'sdn_frac_tcp',
+    'sdn_pkts_icmp', 'sdn_pkts_tcp', 'sdn_pkts_udp',
+    'sdn_frac_icmp', 'sdn_frac_tcp', 'sdn_frac_udp',
     # Suavizado (rolling max de los ultimos SDN_ROLL s): el controlador
     # muestrea cada ~2 s, asi que la senal de protocolo sale a rafagas y
     # queda en 0 en la mayoria de las ventanas. El rolling max la hace
@@ -67,6 +68,7 @@ SDN_FIELDS = [
     # detectar. Es memoria corta (no mira todo el escenario), asi que
     # sigue siendo defendible como deteccion en linea.
     'sdn_pkts_icmp_roll', 'sdn_frac_icmp_roll',
+    'sdn_pkts_udp_roll', 'sdn_frac_udp_roll',
 ]
 
 # Ventana (en segundos) del rolling max de la senal de protocolo.
@@ -158,8 +160,10 @@ def sdn_snapshots(path):
 
         pkts_icmp = per_proto.get(1, 0.0)   # proto 1 = ICMP
         pkts_tcp = per_proto.get(6, 0.0)    # proto 6 = TCP
+        pkts_udp = per_proto.get(17, 0.0)   # proto 17 = UDP
         frac_icmp = pkts_icmp / delta_pkts_total if delta_pkts_total > 0 else 0.0
         frac_tcp = pkts_tcp / delta_pkts_total if delta_pkts_total > 0 else 0.0
+        frac_udp = pkts_udp / delta_pkts_total if delta_pkts_total > 0 else 0.0
 
         snapshots[ts] = {
             'sdn_flows_total': n_flows,
@@ -172,8 +176,10 @@ def sdn_snapshots(path):
             'sdn_mean_pkts_per_flow': round(delta_pkts_total / n_flows, 1) if n_flows else 0.0,
             'sdn_pkts_icmp': round(pkts_icmp, 1),
             'sdn_pkts_tcp': round(pkts_tcp, 1),
+            'sdn_pkts_udp': round(pkts_udp, 1),
             'sdn_frac_icmp': round(frac_icmp, 4),
             'sdn_frac_tcp': round(frac_tcp, 4),
+            'sdn_frac_udp': round(frac_udp, 4),
         }
     return snapshots
 
@@ -237,6 +243,8 @@ def build_run(run_name, base, run_id):
     conns_history = []
     icmp_pkts_history = []
     icmp_frac_history = []
+    udp_pkts_history = []
+    udp_frac_history = []
     prev_core = None
     prev_pps = None
     for row in interno:
@@ -279,6 +287,10 @@ def build_run(run_name, base, run_id):
         icmp_frac_history.append(record.get('sdn_frac_icmp', 0.0))
         record['sdn_pkts_icmp_roll'] = round(max(icmp_pkts_history[-SDN_ROLL:]), 1)
         record['sdn_frac_icmp_roll'] = round(max(icmp_frac_history[-SDN_ROLL:]), 4)
+        udp_pkts_history.append(record.get('sdn_pkts_udp', 0.0))
+        udp_frac_history.append(record.get('sdn_frac_udp', 0.0))
+        record['sdn_pkts_udp_roll'] = round(max(udp_pkts_history[-SDN_ROLL:]), 1)
+        record['sdn_frac_udp_roll'] = round(max(udp_frac_history[-SDN_ROLL:]), 4)
         out.append(record)
         prev_core = core
         prev_pps = rx_pps
