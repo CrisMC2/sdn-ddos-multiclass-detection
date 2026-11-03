@@ -72,12 +72,31 @@ SYN_PPS = _env_int('SYN_PPS', 20)
 ICMP_PPS = _env_int('ICMP_PPS', 20)
 SLOWLORIS_CONNS = _env_int('SLOWLORIS_CONNS', 20)
 
+# Segundo en que arranca el ataque dentro de una corrida de ataque. Antes de
+# eso las PCs infectadas navegan igual que los alumnos (todo es BENIGN); a
+# partir de ahi atacan. 0 = ataque desde el primer segundo (comportamiento
+# anterior). MACHINE_TAG identifica la maquina que genero la corrida.
+ONSET_S = _env_int('ONSET_S', 30)
+MACHINE_TAG = os.environ.get('MACHINE_TAG', '').strip()
+
+
+def onset_for(duration):
+    """Segundo del ataque para una corrida de `duration` s. Si la corrida es
+    corta (pruebas de 20 s) el ataque arranca a un cuarto del tiempo."""
+    if ONSET_S <= 0:
+        return 0
+    if duration >= ONSET_S + 10:
+        return ONSET_S
+    return max(1, duration // 4)
+
 
 def run_config():
     """Lo que vario en esta corrida, para guardarlo en el meta.json."""
     return {
         'run_tag': RUN_TAG,
         'seed': RUN_SEED,
+        'onset_s': ONSET_S,
+        'machine_tag': MACHINE_TAG,
         'browse_pause_min': BROWSE_PAUSE_MIN,
         'browse_pause_max': BROWSE_PAUSE_MAX,
         'http_flood_pause': HTTP_FLOOD_PAUSE,

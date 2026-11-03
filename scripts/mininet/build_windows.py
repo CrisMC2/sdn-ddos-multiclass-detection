@@ -25,10 +25,11 @@ Corre en la Mac, sin Docker:
   python3 scripts/mininet/build_windows.py
 """
 import csv
+import json
 import math
 import os
 
-from paths import metrics_dir, processed_dir
+from paths import metrics_dir, processed_dir, raw_dir
 
 SCENARIOS = ('baseline', 'synflood', 'httpflood', 'slowloris', 'icmpflood')
 
@@ -36,15 +37,18 @@ SCENARIOS = ('baseline', 'synflood', 'httpflood', 'slowloris', 'icmpflood')
 REF_FIELDS = ['timestamp', 'elapsed_s', 'scenario', 'run']
 
 # Features que salen de la sonda y los contadores del portal.
+# core_flows sale de la tabla OpenFlow del switch core: es un dato SDN, y por
+# eso lleva el prefijo sdn_ (los grupos de features se arman por prefijo).
+# benign_real_tx_* (la interfaz del navegador del operador) ya no entra: sin
+# nadie navegando solo es ruido de la interfaz y no distingue nada.
 PROBE_FIELDS = [
-    'server_rx_pps', 'server_rx_bps', 'server_conns', 'core_flows',
+    'server_rx_pps', 'server_rx_bps', 'server_conns', 'sdn_core_flows',
     'probe_latency_ms', 'http_ok',
-    'benign_real_tx_pps', 'benign_real_tx_bps',
 ]
 
 # Features derivadas del tiempo (cambio y suavizado).
 DERIVED_FIELDS = [
-    'core_flows_delta', 'rx_pps_delta', 'rx_pps_roll3', 'conns_roll3',
+    'sdn_core_flows_delta', 'rx_pps_delta', 'rx_pps_roll3', 'conns_roll3',
 ]
 
 # Features de la vista SDN del controlador (0 si no hay _sdn.csv).
@@ -175,7 +179,8 @@ def sdn_snapshots(path):
 
 
 def sdn_for(ts, snapshots, sorted_ts):
-    """La telemetria SDN mas reciente con instante <= ts."""
+    """La telemetria SDN mas reciente con instante <= ts. Si todavia no hubo
+    ninguna muestra, ceros: nunca se usa una muestra del futuro."""
     if not sorted_ts:
         return {name: 0.0 for name in SDN_FIELDS}
     chosen = None
@@ -185,8 +190,34 @@ def sdn_for(ts, snapshots, sorted_ts):
         else:
             break
     if chosen is None:
-        chosen = sorted_ts[0]
+        return {name: 0.0 for name in SDN_FIELDS}
     return snapshots[chosen]
+
+
+def load_meta(run_name):
+    """meta.json de la corrida (data/raw/<corrida>.meta.json), o {}."""
+    path = os.path.join(raw_dir(), '%s.meta.json' % run_name)
+    if not os.path.isfile(path):
+        return {}
+    try:
+        with open(path) as fh:
+            return json.load(fh)
+    except (OSError, ValueError):
+        return {}
+
+
+def label_window(base, elapsed, meta):
+    """BENIGN antes del ataque, el nombre del ataque desde que arranca.
+    baseline siempre BENIGN. Una corrida vieja, sin el instante de inicio en
+    su meta, se etiqueta entera con el escenario (comportamiento anterior)."""
+    if base == 'baseline':
+        return 'BENIGN'
+    start = meta.get('attack_start_elapsed')
+    if start is None:
+        # Meta nueva (trae onset_planned_s) sin inicio registrado: el ataque
+        # nunca arranco, todo fue benigno. Meta vieja: entera con el escenario.
+        return 'BENIGN' if 'onset_planned_s' in meta else base
+    return base if elapsed >= int(start) else 'BENIGN'
 
 
 # --------------------------------------------------------------------------
@@ -199,7 +230,7 @@ def build_run(run_name, base, run_id):
         return []
     snapshots = sdn_snapshots(os.path.join(metrics_dir(), '%s_sdn.csv' % run_name))
     sorted_ts = sorted(snapshots)
-    label = 'BENIGN' if base == 'baseline' else base
+    meta = load_meta(run_name)
 
     out = []
     pps_history = []
@@ -209,11 +240,16 @@ def build_run(run_name, base, run_id):
     prev_core = None
     prev_pps = None
     for row in interno:
+        # La primera muestra de cada corrida sale vacia (los contadores del
+        # portal arrancan en ese instante, rx_pps = 0): no es una ventana real.
+        if int(_num(row.get('elapsed_s'))) <= 1:
+            continue
         ts = int(_num(row.get('timestamp')))
         rx_pps = _num(row.get('server_rx_pps'))
         conns = _num(row.get('server_conns'))
         core = _num(row.get('core_flows'))
         code = (row.get('probe_http_code') or '').strip()
+        elapsed = int(_num(row.get('elapsed_s')))
 
         pps_history.append(rx_pps)
         conns_history.append(conns)
@@ -228,16 +264,14 @@ def build_run(run_name, base, run_id):
             'server_rx_pps': rx_pps,
             'server_rx_bps': _num(row.get('server_rx_bps')),
             'server_conns': conns,
-            'core_flows': core,
+            'sdn_core_flows': core,
             'probe_latency_ms': _num(row.get('probe_latency_ms')),
             'http_ok': 1 if code == '200' else 0,
-            'benign_real_tx_pps': _num(row.get('benign_real_tx_pps')),
-            'benign_real_tx_bps': _num(row.get('benign_real_tx_bps')),
-            'core_flows_delta': 0.0 if prev_core is None else core - prev_core,
+            'sdn_core_flows_delta': 0.0 if prev_core is None else core - prev_core,
             'rx_pps_delta': 0.0 if prev_pps is None else rx_pps - prev_pps,
             'rx_pps_roll3': round(roll_pps, 1),
             'conns_roll3': round(roll_conns, 1),
-            'Label': label,
+            'Label': label_window(base, elapsed, meta),
         }
         record.update(sdn_for(ts, snapshots, sorted_ts))
         # Suavizado de la senal de protocolo (rolling max de SDN_ROLL s).
@@ -280,7 +314,8 @@ def discover_runs():
 
 
 def main():
-    out_dir = os.path.join(processed_dir(), 'ventanas')
+    # WINDOWS_DIR permite escribir un dataset nuevo sin pisar el anterior.
+    out_dir = os.path.join(processed_dir(), os.environ.get('WINDOWS_DIR', 'ventanas'))
     os.makedirs(out_dir, exist_ok=True)
 
     runs = discover_runs()

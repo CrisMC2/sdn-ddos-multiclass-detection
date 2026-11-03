@@ -5,6 +5,7 @@
 *.sh   text eol=lf
 *.py   text eol=lf
 *.bash text eol=lf
+Dockerfile text eol=lf
 
 # Normaliza fin de linea de archivos de texto por defecto (LF en el repo).
 * text=auto
