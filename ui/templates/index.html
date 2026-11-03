@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Campus-DDoS-SDN</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">🛰️ <span>Campus-DDoS-SDN</span></div>
+  <nav class="tabs">
+    <button class="tab-btn activo" data-tab="entorno">1. Entorno</button>
+    <button class="tab-btn" data-tab="lanzar">2. Lanzar</button>
+    <button class="tab-btn" data-tab="vivo">3. En vivo</button>
+  </nav>
+</header>
+
+<main>
+  <!-- ======================= TAB 1: ENTORNO ======================= -->
+  <section id="tab-entorno" class="tab-panel activo">
+    <h2>Antes de empezar</h2>
+    <p class="ayuda">Revisa esto antes de lanzar una corrida. Si algo sale en rojo, arreglalo primero: evita el error a mitad de una demo.</p>
+    <div class="cards" id="env-cards">
+      <div class="card" id="card-docker"><span class="icono">🐳</span><div><b>Docker</b><div class="estado">revisando…</div></div></div>
+      <div class="card" id="card-imagen"><span class="icono">📦</span><div><b>Imagen ataque-sdn</b><div class="estado">revisando…</div></div></div>
+      <div class="card" id="card-puerto"><span class="icono">🔌</span><div><b>Puerto 8080</b><div class="estado">revisando…</div></div></div>
+      <div class="card" id="card-disco"><span class="icono">💾</span><div><b>Espacio en disco</b><div class="estado">revisando…</div></div></div>
+    </div>
+    <div class="acciones">
+      <button id="btn-refrescar-env" class="btn">🔄 Volver a revisar</button>
+      <button id="btn-verify" class="btn btn-primario">🧪 Verificar la red (caminos de prueba)</button>
+      <button id="btn-limpiar" class="btn btn-peligro oculto">🧹 Hay un contenedor viejo activo — limpiarlo</button>
+    </div>
+    <div id="verify-resultado" class="oculto"></div>
+  </section>
+
+  <!-- ======================= TAB 2: LANZAR ======================= -->
+  <section id="tab-lanzar" class="tab-panel">
+    <h2>Elige un escenario</h2>
+    <p class="ayuda">baseline no ataca: es el tráfico normal para comparar. Los demás son cuatro familias de ataque DDoS.</p>
+    <div class="scenario-grid" id="scenario-grid"></div>
+
+    <div class="form-lanzar">
+      <div class="campo">
+        <label for="f-duracion">Duración (segundos)</label>
+        <input type="number" id="f-duracion" value="20" min="5" max="1800">
+      </div>
+      <div class="campo">
+        <label for="f-onset">Ataque arranca en el segundo</label>
+        <input type="number" id="f-onset" value="8" min="0" max="600">
+        <small>0 = ataca desde el inicio. Si no, las infectadas navegan como alumnas hasta ese segundo.</small>
+      </div>
+      <div class="campo">
+        <label for="f-tag">Etiqueta de la corrida (opcional)</label>
+        <input type="text" id="f-tag" placeholder="ej. demo1 — vacío = automática">
+      </div>
+      <details class="avanzado">
+        <summary>Parámetros avanzados</summary>
+        <div class="grid-avanzado">
+          <label>Alumnos por área <input type="number" id="f-students" min="1" max="9" placeholder="4"></label>
+          <label>Infectadas por área <input type="number" id="f-bots" min="1" max="9" placeholder="2"></label>
+          <label>Semilla <input type="number" id="f-seed" placeholder="auto"></label>
+          <label>SYN_PPS <input type="number" id="f-syn" placeholder="20"></label>
+          <label>ICMP_PPS <input type="number" id="f-icmp" placeholder="20"></label>
+          <label>UDP_PPS <input type="number" id="f-udp" placeholder="20"></label>
+          <label>ACK_PPS <input type="number" id="f-ack" placeholder="20"></label>
+          <label>HTTP_FLOOD_WORKERS <input type="number" id="f-httpw" placeholder="4"></label>
+          <label>SLOWLORIS_CONNS <input type="number" id="f-slowloris" placeholder="20"></label>
+          <label>SLOWPOST_CONNS <input type="number" id="f-slowpost" placeholder="20"></label>
+        </div>
+      </details>
+      <button id="btn-lanzar" class="btn btn-primario btn-grande" disabled>▶️ Elige un escenario arriba</button>
+    </div>
+  </section>
+
+  <!-- ======================= TAB 3: EN VIVO ======================= -->
+  <section id="tab-vivo" class="tab-panel">
+    <div class="vivo-header">
+      <div>
+        <h2 id="vivo-titulo">Sin corrida activa</h2>
+        <div class="fase-badge" id="fase-badge">inactivo</div>
+      </div>
+      <div class="vivo-acciones">
+        <span id="vivo-tiempo">—</span>
+        <button id="btn-parar" class="btn btn-peligro" disabled>⏹️ Parar</button>
+      </div>
+    </div>
+
+    <div class="campus-wrap">
+      <svg id="campus-svg" viewBox="0 0 900 320" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+
+    <div class="paneles">
+      <div class="panel">
+        <h3>📈 Paquetes/seg y latencia del portal</h3>
+        <canvas id="chart" width="860" height="220"></canvas>
+      </div>
+      <div class="panel">
+        <h3>🧾 Logs</h3>
+        <pre id="logs"></pre>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
