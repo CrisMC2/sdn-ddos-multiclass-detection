@@ -274,7 +274,18 @@
             <div class="files" id="files-block" hidden>
               <h3>Archivos generados</h3>
               <ul class="file-list" id="file-list"></ul>
-              <p class="muted note">Convertir estos archivos a CSV desde la interfaz llega en la siguiente fase.</p>
+            </div>
+
+            <div class="datasets" id="datasets">
+              <h3>Dataset de entrenamiento</h3>
+              <p class="muted">Convierte esta simulación a los dos CSV con los que se entrena: <b>por flujo</b> (una fila por conexión) y <b>por ventana</b> (una fila por segundo). Solo procesa esta corrida, no las demás.</p>
+              <div class="ds-actions">
+                <button class="btn btn-primary" id="btn-convert" type="button"><svg class="ic" aria-hidden="true"><use href="/static/icons.svg#i-database"/></svg>Convertir a CSV</button>
+                <span class="muted" id="ds-note"></span>
+              </div>
+              <ul class="checks compact" id="ds-pasos" hidden></ul>
+              <div class="error-box" id="ds-error" role="alert" hidden></div>
+              <div id="ds-result" hidden></div>
             </div>
           </section>
 

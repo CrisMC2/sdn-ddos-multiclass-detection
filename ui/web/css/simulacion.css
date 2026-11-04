@@ -119,3 +119,16 @@
   .cfg-grid { grid-template-columns: minmax(0, 1fr); }
   .facts div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
 }
+
+/* ----- Dataset de entrenamiento (dentro del resumen) ----- */
+.datasets { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+.datasets h3 { margin: 0 0 6px; }
+.ds-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 14px 0 10px; }
+.ds-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+.ds-card { border: 1px solid var(--line); border-radius: var(--r-md); padding: 12px 14px; background: var(--surface-2); min-width: 0; }
+.ds-card b { font: 600 22px/1.2 var(--font-display); }
+.ds-card .muted { display: block; margin: 2px 0 8px; }
+.ds-card .chips { margin: 0; }
+.ds-card code { display: inline-block; margin-top: 8px; word-break: break-all; }
+@media (max-width: 960px) { .ds-grid { grid-template-columns: minmax(0, 1fr); } }
+.ds-card .chips b { font: 600 13px/1.3 var(--font-ui); }

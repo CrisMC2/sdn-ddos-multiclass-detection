@@ -25,6 +25,9 @@ Git Bash, WSL, macOS y Linux.
     Cuando hay un ataque cambian el borde, el aviso, el portal y una línea en la
     parte superior de la página. La cantidad de paquetes sale de las métricas reales.
   - *Datos*: tarjetas, gráficos por segundo, resumen antes/durante y archivos.
+  - *Dataset de entrenamiento*: al terminar, un botón convierte esa corrida a los dos
+    CSV (por flujo y por ventana) y muestra cuántas filas salieron por clase. Solo
+    procesa esa corrida (`ONLY_RUNS`), no los demás pcap.
 
 Una simulación deja en `data/` lo mismo que `run_scenario.sh`: pcap, `meta.json` y
 los CSV de métricas (`_interno`, `_sdn`, `_docker`). Sin etiqueta, usa `uiHHMMSS`
@@ -41,6 +44,7 @@ ui/
 │   ├── catalog.py        explicación de cada escenario (agrega uno aquí)
 │   ├── dockerctl.py      hablar con Docker y el sistema
 │   ├── launch.py         validar el formulario de lanzamiento
+│   ├── datasets.py       convertir una corrida a CSV (flujos y ventanas)
 │   ├── jobs.py           la corrida activa (hilo, logs, docker stats)
 │   ├── runfiles.py       leer meta.json, métricas y archivos generados
 │   └── routes.py         endpoints /api/*
@@ -72,6 +76,5 @@ Agregar un ataque: una línea en `scripts/mininet/scenarios.txt`, su generador e
 
 ## Falta (siguientes fases)
 
-Convertir a CSV y armar el dataset por ventana desde la interfaz, biblioteca de
-corridas y repeticiones tipo `repeat N`. Hoy eso sigue siendo por terminal
-(`run_scenario.sh convert`, `build_windows.py`).
+Biblioteca de corridas anteriores y repeticiones tipo `repeat N` desde la interfaz.
+Hoy las campañas largas siguen siendo por terminal (`run_scenario.sh repeat`).

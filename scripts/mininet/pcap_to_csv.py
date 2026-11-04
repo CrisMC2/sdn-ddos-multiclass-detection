@@ -318,6 +318,11 @@ def main():
     raw = raw_dir()
     out_dir = processed_dir()
     pcaps = iter_pcaps(raw)
+    # ONLY_RUNS=a,b convierte solo esas corridas (la interfaz web convierte la
+    # que acaba de terminar sin reprocesar los demas pcap).
+    solo = [x.strip() for x in os.environ.get('ONLY_RUNS', '').split(',') if x.strip()]
+    if solo:
+        pcaps = [p for p in pcaps if os.path.splitext(os.path.basename(p))[0] in solo]
     if not pcaps:
         print('No hay pcap en %s' % raw)
         return

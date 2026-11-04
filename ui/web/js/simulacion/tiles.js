@@ -58,7 +58,7 @@ export function renderTiles() {
   const cn = last ? last.conns : null;
   poner('conns', 'Conexiones abiertas en el portal', cn == null ? '—' : fmtInt(cn), '',
     cn != null && cn > PORTAL_CUPO
-      ? { text: 'Por encima del cupo de ' + PORTAL_CUPO, tone: 'bad', icon: 'alert' }
+      ? { text: 'Cupo de ' + PORTAL_CUPO + ' lleno: el resto se rechaza', tone: 'bad', icon: 'alert' }
       : { text: 'Cupo del portal: ' + PORTAL_CUPO });
 
   const dur = st.duration || 0;

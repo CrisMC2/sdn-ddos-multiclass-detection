@@ -207,7 +207,10 @@ export function renderCampus() {
   const frac = clamp(conns / PORTAL_CUPO, 0, 1);
   modelo.medidor.setAttribute('width', (136 * frac).toFixed(1));
   modelo.medidor.setAttribute('class', 'meter-fill' + (frac >= 1 ? ' crit' : (frac >= 0.6 ? ' warn' : '')));
-  modelo.medidorT.textContent = hay && ultima ? 'Conexiones ' + Math.round(conns) + ' de ' + PORTAL_CUPO : '';
+  // El conteo puede superar el cupo (incluye intentos que el portal rechaza):
+  // el medidor se llena y el texto lo dice, en vez de un "49 de 30".
+  modelo.medidorT.textContent = !(hay && ultima) ? ''
+    : (conns > PORTAL_CUPO ? 'Cupo lleno: ' + Math.round(conns) + ' intentos' : 'Cupos ' + Math.round(conns) + ' de ' + PORTAL_CUPO);
 
   pintarAviso(st, atacando, ultima);
 

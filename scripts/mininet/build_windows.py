@@ -322,6 +322,10 @@ def discover_runs():
         run_id = parts[1] if len(parts) > 1 else 'base'
         if base in SCENARIOS:
             runs.append((run_name, base, run_id))
+    # ONLY_RUNS=a,b arma solo esas corridas (lo usa la interfaz web).
+    solo = [x.strip() for x in os.environ.get('ONLY_RUNS', '').split(',') if x.strip()]
+    if solo:
+        runs = [r for r in runs if r[0] in solo]
     return runs
 
 
@@ -356,8 +360,13 @@ def main():
         print('No habia metricas en %s. Corre antes un escenario.' % metrics_dir())
         return
 
-    write_csv(os.path.join(out_dir, 'ventanas.csv'), combined)
-    print('\n%d ventanas en total -> %s' % (len(combined), os.path.join(out_dir, 'ventanas.csv')))
+    if os.environ.get('ONLY_RUNS', '').strip():
+        # Con un subconjunto no se reescribe el combinado: lo pisaria con
+        # menos corridas de las que tiene el dataset completo.
+        print('\n%d ventanas -> %s' % (len(combined), out_dir))
+    else:
+        write_csv(os.path.join(out_dir, 'ventanas.csv'), combined)
+        print('\n%d ventanas en total -> %s' % (len(combined), os.path.join(out_dir, 'ventanas.csv')))
     if not sdn_seen:
         print('Nota: ninguna ventana trae telemetria SDN (columnas sdn_* en 0).')
         print('      Vuelve a correr los escenarios con el controlador nuevo')

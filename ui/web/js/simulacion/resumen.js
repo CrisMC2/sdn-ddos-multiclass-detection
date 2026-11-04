@@ -1,6 +1,8 @@
 /* Resumen antes/durante el ataque, archivos generados y registro del contenedor. */
 import { $, h, ico } from '../core/dom.js';
 import { fmtBytes, fmtInt, mean } from '../core/format.js';
+import { post } from '../core/api.js';
+import { emit } from '../core/bus.js';
 import { S } from '../core/state.js';
 
 export function renderSummary() {
@@ -31,6 +33,56 @@ export function renderSummary() {
   $('#files-block').hidden = !archivos.length;
   $('#file-list').replaceChildren(...archivos.map((f) => h('li', null, ico('file'),
     h('span', { class: 'fn' }, f.nombre), h('span', { class: 'fd' }, f.carpeta + '/'), h('span', { class: 'fs' }, fmtBytes(f.bytes)))));
+  renderDatasets();
+}
+
+/* ----------------------- dataset de entrenamiento ----------------------- */
+
+function tarjeta(titulo, desc, datos, ruta) {
+  const cuerpo = [h('b', null, datos ? fmtInt(datos.total) : '—'), h('span', { class: 'muted' }, titulo + ' · ' + desc)];
+  if (datos) {
+    cuerpo.push(h('ul', { class: 'chips' }, Object.entries(datos.por_clase).map(([clase, n]) => h('li', null, h('b', null, clase), ' ' + fmtInt(n)))));
+    cuerpo.push(h('code', null, ruta));
+  } else cuerpo.push(h('span', { class: 'muted' }, 'No se generó.'));
+  return h('div', { class: 'ds-card' }, cuerpo);
+}
+
+function renderDatasets() {
+  const st = S.status; const d = st && st.datasets;
+  if (!d) return;
+  const run = st.run_name;
+  const tienePcap = (st.archivos || []).some((f) => f.nombre.endsWith('.pcap'));
+  const convirtiendo = d.activo;
+  const btn = $('#btn-convert');
+  btn.disabled = convirtiendo || st.activo || !tienePcap;
+  $('#btn-convert').lastChild.textContent = d.resultado && !convirtiendo ? 'Volver a convertir' : 'Convertir a CSV';
+  $('#ds-note').textContent = !tienePcap ? 'Esta simulación no dejó captura (.pcap): no se puede convertir.'
+    : (st.activo ? 'Espera a que termine la simulación.' : (convirtiendo ? '' : 'Tarda unos 30 s a 1 min por corrida.'));
+
+  const pasos = $('#ds-pasos');
+  pasos.hidden = !convirtiendo;
+  if (convirtiendo) {
+    const fase = d.fase;
+    const fila = (txt, estado) => h('li', { class: estado }, ico(estado === 'ok' ? 'check' : (estado === 'run' ? 'refresh' : 'info'), 'st'), h('div', { class: 'chk-t' }, h('b', null, txt)));
+    pasos.replaceChildren(
+      fila('Dataset por flujo: CICFlowMeter y agrupador ICMP, dentro de Docker', fase === 'flujos' ? 'run' : 'ok'),
+      fila('Dataset por ventana: métricas por segundo y telemetría SDN', fase === 'ventanas' ? 'run' : 'unk'));
+  }
+  const err = $('#ds-error');
+  err.hidden = d.fase !== 'error' || d.run_name !== run;
+  err.textContent = d.error || '';
+
+  const res = d.resultado && d.resultado.run_name === run ? d.resultado : null;
+  const caja = $('#ds-result');
+  caja.hidden = !res || convirtiendo;
+  if (res && !convirtiendo) {
+    caja.replaceChildren(h('div', { class: 'ds-grid' },
+      tarjeta('Por flujo', 'filas, una por conexión', res.flujos, 'data/processed/' + run + '.csv'),
+      tarjeta('Por ventana', 'filas, una por segundo', res.ventanas, 'data/processed/ventanas/' + run + '.csv')),
+      h('div', { class: 'ds-actions' },
+        h('a', { class: 'btn', href: '/api/descargar/' + encodeURIComponent(run), download: run + '.zip' }, ico('file'), 'Descargar ZIP'),
+        h('span', { class: 'muted' }, 'Incluye los dos CSV y el meta.json que explica el etiquetado.')));
+  }
 }
 
 export function renderLogs() {
@@ -47,5 +99,12 @@ export function renderLogs() {
 }
 
 export function initResumen() {
+  $('#btn-convert').addEventListener('click', async () => {
+    const st = S.status; if (!st || !st.run_name) return;
+    $('#btn-convert').disabled = true;
+    const res = await post('/api/convertir', { run_name: st.run_name });
+    if (res && !res.ok) { const e = $('#ds-error'); e.hidden = false; e.textContent = res.error; }
+    emit('pedir-estado');
+  });
   $('#logs').closest('details').addEventListener('toggle', renderLogs);
 }

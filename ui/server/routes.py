@@ -1,10 +1,14 @@
 """Los endpoints /api/*. La logica vive en jobs/launch/dockerctl/runfiles; aqui
 solo se traduce entre HTTP y ellas."""
-from flask import Blueprint, jsonify, request
+import io
+import re
+import zipfile
 
-from . import dockerctl, jobs, runfiles
+from flask import Blueprint, jsonify, request, send_file
+
+from . import datasets, dockerctl, jobs, runfiles
 from .catalog import GRUPOS, attack_ids, load_scenarios, scenario_info
-from .config import BENIGN_PORT, IMAGE
+from .config import BENIGN_PORT, DATA_DIR, IMAGE
 from .launch import LaunchError, parse
 
 api = Blueprint('api', __name__, url_prefix='/api')
@@ -56,7 +60,42 @@ def parar():
 
 @api.get('/status')
 def status():
-    return jsonify(jobs.snapshot())
+    snap = jobs.snapshot()
+    snap['datasets'] = datasets.snapshot()
+    return jsonify(snap)
+
+
+@api.post('/convertir')
+def convertir():
+    body = request.get_json(force=True, silent=True) or {}
+    try:
+        datasets.start(body.get('run_name'))
+    except jobs.JobError as exc:
+        return jsonify({'ok': False, 'error': str(exc)}), exc.status
+    return jsonify({'ok': True})
+
+
+@api.get('/descargar/<run_name>')
+def descargar(run_name):
+    """ZIP con los CSV de una corrida (flujos y ventanas) y su meta.json, que
+    es lo que explica como se etiqueto cada fila."""
+    if not re.fullmatch(r'[A-Za-z0-9_-]{1,60}', run_name):
+        return jsonify({'ok': False, 'error': 'Nombre de corrida inválido.'}), 400
+    archivos = [
+        (DATA_DIR / 'processed' / ('%s.csv' % run_name), 'por_flujo/%s.csv' % run_name),
+        (DATA_DIR / 'processed' / 'ventanas' / ('%s.csv' % run_name), 'por_ventana/%s.csv' % run_name),
+        (DATA_DIR / 'raw' / ('%s.meta.json' % run_name), '%s.meta.json' % run_name),
+    ]
+    existentes = [(ruta, nombre) for ruta, nombre in archivos if ruta.is_file()]
+    if not any(n.endswith('.csv') for _r, n in existentes):
+        return jsonify({'ok': False, 'error': 'Esa corrida todavía no tiene CSV: conviértela primero.'}), 404
+    memoria = io.BytesIO()
+    with zipfile.ZipFile(memoria, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for ruta, nombre in existentes:
+            zf.write(ruta, nombre)
+    memoria.seek(0)
+    return send_file(memoria, mimetype='application/zip', as_attachment=True,
+                     download_name='%s.zip' % run_name)
 
 
 @api.get('/metrics')
