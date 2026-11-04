@@ -114,7 +114,7 @@ Los aportes concretos de este trabajo son los siguientes.
 
       \item Telemetría del controlador OpenFlow exportada en cada ejecución por una aplicación Ryu propia, que instala un flujo por IP de origen y muestrea periódicamente los contadores de la tabla de flujos, incluyendo paquetes, bytes y entradas activas. Esos datos se cruzan con las métricas del portal por ventana de tiempo y aportan las señales SDN que los datasets no-SDN no tienen.
 
-      \item Un dataset por ventana de tiempo con una fila por segundo que incluye contadores del portal y telemetría SDN, evaluado con validación cruzada leave-one-run-out sobre cinco ejecuciones independientes. El bosque aleatorio alcanza F1 macro = 0{,}999~$\pm$~0{,}001 y F1 binario = 1{,}000~$\pm$~0{,}000 sin falsos positivos. La ablación muestra que la telemetría SDN aporta $+$0{,}054 de F1 macro frente a usar solo contadores de red, confirmando que las señales OpenFlow complementan la detección temprana.
+      \item Un dataset por ventana de tiempo con una fila por segundo que incluye contadores del portal y telemetría SDN, evaluado con validación cruzada leave-one-run-out sobre 20 corridas que cubren cinco perfiles de intensidad (normal, bajo, sigiloso, pulsos y rampa). El bosque aleatorio alcanza F1 macro = 0{,}918~$\pm$~0{,}149 y F1 binario = 0{,}942~$\pm$~0{,}107. La ablación muestra que la telemetría SDN aporta $+$0{,}092 de F1 macro frente a usar solo contadores de red, confirmando que las señales OpenFlow complementan la detección temprana.
 
 \end{enumerate}
 
@@ -153,7 +153,7 @@ La verdad fundamental se asigna por emisor, no por archivo de captura. Un flujo 
 Del tráfico capturado se derivan dos conjuntos complementarios. \emph{Por flujo} (\texttt{pcap\_to\_csv.py}): el tráfico TCP y UDP pasa por CICFlowMeter, que produce estadísticas bidireccionales; el ICMP, queno entra en ese filtro, lo cierra un agrupador propio a los 10~s (sin ese corte cada PC dejaría un único flujo largísimo y la clase quedaría con muy pocas filas). A cada flujo se le a\~naden columnas \texttt{sdn\_*} derivadas de la telemetría OpenFlow, cruzadas por IP de origen. Antes de entrenar se descartan la IP origen, la IP destino, los puertos y la marca de tiempo, para que el modelo aprenda comportamiento y no identidad de la máquina; los valores infinitos o vacíos pasan a cero y se quita toda columna constante. El modelo es un bosque de 200 árboles con peso por clase, porque la inundación SYN domina el conjunto. \emph{Por ventana de tiempo} (\texttt{build\_windows.py}): una fila por segundo que agrega los contadores del portal y la telemetría SDN del intervalo (entropía de las IP de origen, concentración del tráfico, crecimiento de la tabla de flujos y paquetes por protocolo), para la detección \emph{mientras el ataque ocurre}.
 
 \subsection{Protocolo de evaluación}
-Nunca se usa una partición aleatoria, porque ventanas y flujos vecinos están correlacionados. El modelo por flujo (\texttt{analisis\_completo.py}) se evalúa con un \emph{holdout} de laboratorio: entrenan cuatro áreas académicas (185\,127 flujos) y se prueba sobre una no vista, Ciencias Agrarias (45\,550 flujos). El detector por ventana se evalúa con validación cruzada \emph{leave-one-run-out} cuando hay dos o más ejecuciones. Para obtener media y desviación el banco ejecuta \texttt{run\_scenario.sh repeat N}, que repite los cinco escenarios $N$ veces con semillas e intensidades distintas (registradas en el \texttt{meta.json} de cada ejecución). Los resultados de este artículo salen de cinco ejecuciones de 120~s por escenario.
+Nunca se usa una partición aleatoria, porque ventanas y flujos vecinos están correlacionados. El modelo por flujo (\texttt{analisis\_completo.py}) se evalúa con un \emph{holdout} de laboratorio: entrenan cuatro áreas académicas (185\,127 flujos) y se prueba sobre una no vista, Ciencias Agrarias (45\,550 flujos). El detector por ventana se evalúa con validación cruzada \emph{leave-one-run-out} cuando hay dos o más ejecuciones. Para obtener media y desviación el banco ejecuta \texttt{run\_scenario.sh repeat N} o \texttt{dificil N}, que repiten los escenarios con semillas e intensidades distintas (registradas en el \texttt{meta.json} de cada ejecución). El clasificador por flujo usa cinco ejecuciones de 120~s por escenario; el detector por ventana usa 20 corridas que combinan cinco perfiles de intensidad (normal, bajo, sigiloso, pulsos y rampa), más cuatro ataques nunca vistos reservados solo para prueba.
 
 \begin{figure*}[t]
       \centering
@@ -194,7 +194,7 @@ Para repetir la ejecución basta una computadora de escritorio común, con 8 nú
 \FloatBarrier
 \section{Resultados y panorama de impacto}\label{sec:impact}
 
-El banco es completamente reproducible: se repite con semillas controladas, mezcla alumno y ataque en la misma captura, y produce dos pipelines de detección complementarios. El clasificador por flujo alcanza un F1 macro de \FmacroEs en el laboratorio de Ciencias Agrarias, retenido del entrenamiento. El detector por ventana, evaluado con leave-one-run-out sobre cinco ejecuciones independientes, obtiene F1 macro = 0{,}999~$\pm$~0{,}001. Con autorización institucional, el mismo pipeline admite tráfico benigno real (Wireshark) sin sacar el ataque del contenedor.
+El banco es completamente reproducible: se repite con semillas controladas, mezcla alumno y ataque en la misma captura, y produce dos pipelines de detección complementarios. El clasificador por flujo alcanza un F1 macro de \FmacroEs{} en el laboratorio de Ciencias Agrarias, retenido del entrenamiento. El detector por ventana, evaluado con leave-one-run-out sobre 20 corridas que cubren cinco perfiles de intensidad, obtiene F1 macro = 0{,}918~$\pm$~0{,}149. Con autorización institucional, el mismo pipeline admite tráfico benigno real (Wireshark) sin sacar el ataque del contenedor.
 
 \subsection{Composición del dataset por flujo}
 
@@ -208,11 +208,11 @@ SYN genera la mayor tasa, 715 paquetes/s, pero la sonda mantiene las 120 respues
 \subsection{Rendimiento del clasificador por flujo}
 \input{tabla_resultados.tex}
 
-El F1 macro en Agrarias es \FmacroEs y el F1 binario \texttt{BENIGN} frente a ataque es 1{,}000. Entre las variables de mayor peso aparecen tanto estadísticas de CICFlowMeter (la media y la variabilidad de la longitud de paquete de ida y el tamaño medio del segmento de ida) como columnas derivadas de la telemetría OpenFlow cruzada por IP de origen (\texttt{sdn\_avg\_pkt\_bytes}, \texttt{sdn\_bytes}, \texttt{sdn\_pkts}). Esto es coherente con los escenarios --SYN genera segmentos pequeños y repetidos, HTTP intercambia solicitudes y respuestas completas, y Slowloris sostiene conexiones con poco tráfico-- y muestra que las señales SDN aportan también a nivel de flujo individual.
+El F1 macro en Agrarias es \FmacroEs{} y el F1 binario \texttt{BENIGN} frente a ataque es 1{,}000. Entre las variables de mayor peso aparecen tanto estadísticas de CICFlowMeter (la media y la variabilidad de la longitud de paquete de ida y el tamaño medio del segmento de ida) como columnas derivadas de la telemetría OpenFlow cruzada por IP de origen (\texttt{sdn\_avg\_pkt\_bytes}, \texttt{sdn\_bytes}, \texttt{sdn\_pkts}). Esto es coherente con los escenarios --SYN genera segmentos pequeños y repetidos, HTTP intercambia solicitudes y respuestas completas, y Slowloris sostiene conexiones con poco tráfico-- y muestra que las señales SDN aportan también a nivel de flujo individual.
 
 \subsection{detección temprana por ventana de tiempo}
 
-El dataset por ventana contiene 2\,960 ventanas de un segundo, distribuidas en cinco ejecuciones independientes (r01--r05). La distribución por clase es prácticamente balanceada: 600 ventanas para BENIGN, httpflood, icmpflood y synflood, y 560 para slowloris (Fig.~\ref{fig:ventanas_clase}). Este balance es resultado del diseño experimental, donde cada escenario dura 120~s por ejecución.
+El dataset por ventana contiene 11\,698 ventanas de un segundo, distribuidas en 20 corridas que combinan cinco perfiles de intensidad (normal, bajo, sigiloso, pulsos y rampa). BENIGN reúne 5\,175 ventanas y cada vector de ataque entre 1\,573 y 1\,652 (Fig.~\ref{fig:ventanas_clase}). Para medir la generalización, el dataset reserva además cuatro ataques nunca vistos --\texttt{ackflood}, \texttt{udpflood}, \texttt{slowpost} y \texttt{multivector}-- que solo aparecen en prueba. Cada escenario dura 120~s por corrida.
 
 \begin{figure}[tbp]
       \centering
@@ -234,21 +234,21 @@ La Fig.~\ref{fig:paquetes_escenario} muestra la distribución de la tasa de paqu
 \begin{table}[H]
       \centering
       \small
-      \caption{Comparación de modelos (leave-one-run-out, 5 folds).}
+      \caption{Comparación de modelos (leave-one-run-out, 20 folds).}
 
       \label{tbl:comparacion_modelos}
       \begin{tabular}{lcccc}
             \hline
             Modelo & F1 macro & $\pm$ & F1 bin. & $\pm$ \\
             \hline
-            Bosque aleatorio     & 0{,}999 & 0{,}001 & 1{,}000 & 0{,}000 \\
-            Gradient boosting    & 0{,}999 & 0{,}001 & 1{,}000 & 0{,}000 \\
-            Reg. logística     & 0{,}997 & 0{,}004 & 0{,}999 & 0{,}001 \\
+            Bosque aleatorio     & 0{,}918 & 0{,}149 & 0{,}942 & 0{,}107 \\
+            Gradient boosting    & 0{,}918 & 0{,}143 & 0{,}944 & 0{,}096 \\
+            Reg. logística     & 0{,}901 & 0{,}183 & 0{,}896 & 0{,}194 \\
             \hline
       \end{tabular}
 \end{table}
 
-La Tabla~\ref{tbl:comparacion_modelos} compara los tres modelos evaluados. Los tres superan ampliamente la hipótesis de trabajo (F1 macro $>$ 0{,}90). El bosque aleatorio y el gradient boosting son equivalentes; la regresión logística, siendo un modelo lineal, muestra mayor varianza entre ejecuciones pero sigue siendo competitiva. Se selecciona el bosque aleatorio por su estabilidad y su capacidad de producir importancias de features interpretables.
+La Tabla~\ref{tbl:comparacion_modelos} compara los tres modelos evaluados. Los tres superan la hipótesis de trabajo (F1 macro $>$ 0{,}90), ahora sobre un dataset mucho más exigente que incluye perfiles de ataque sigilosos y de baja intensidad. El bosque aleatorio y el gradient boosting son equivalentes; la regresión logística, siendo un modelo lineal, muestra mayor varianza entre ejecuciones pero sigue siendo competitiva. Se selecciona el bosque aleatorio por su estabilidad y su capacidad de producir importancias de features interpretables.
 
 \begin{table}[H]
       \centering
@@ -259,14 +259,14 @@ La Tabla~\ref{tbl:comparacion_modelos} compara los tres modelos evaluados. Los t
             \hline
             Grupo & F1 macro & $\pm$ \\
             \hline
-            Solo red (12 features)  & 0{,}945 & 0{,}104 \\
-            Solo SDN (14 features)  & 0{,}892 & 0{,}115 \\
-            Todas (26 features)     & 0{,}999 & 0{,}001 \\
+            Solo red (8 features)   & 0{,}826 & 0{,}201 \\
+            Solo SDN (20 features)  & 0{,}810 & 0{,}224 \\
+            Todas (28 features)     & 0{,}918 & 0{,}149 \\
             \hline
       \end{tabular}
 \end{table}
 
-La Tabla~\ref{tbl:ablacion} y la Fig.~\ref{fig:ablacion} presentan la ablación de features. Las features de red solas alcanzan F1 = 0{,}945 con alta variabilidad ($\pm$0{,}104), indicando que algunos ataques son difíciles de separar usando solo contadores de paquetes y bytes. Las features SDN solas obtienen F1 = 0{,}892 ($\pm$0{,}115). La combinación de ambos grupos elimina casi toda la incertidumbre y eleva el F1 a 0{,}999 ($\pm$0{,}001). La telemetría OpenFlow aporta $+$0{,}054 de F1 macro sobre usar solo contadores de red, mostrando que las señales del controlador SDN tienen un rol complementario en la detección temprana.
+La Tabla~\ref{tbl:ablacion} y la Fig.~\ref{fig:ablacion} presentan la ablación de features. Las features de red solas alcanzan F1 = 0{,}826 ($\pm$0{,}201) y las SDN solas F1 = 0{,}810 ($\pm$0{,}224); ambas con alta variabilidad entre folds, porque los perfiles sigilosos son difíciles de separar con un solo grupo de señales. La combinación de ambos grupos eleva el F1 a 0{,}918 ($\pm$0{,}149). La telemetría OpenFlow aporta $+$0{,}092 de F1 macro sobre usar solo contadores de red, mostrando que las señales del controlador SDN tienen un rol complementario en la detección.
 
 \begin{figure}[tbp]
       \centering
@@ -284,27 +284,27 @@ La Tabla~\ref{tbl:ablacion} y la Fig.~\ref{fig:ablacion} presentan la ablación 
             \hline
             Clase & Recall & $\pm$ \\
             \hline
-            BENIGN     & 1{,}000 & 0{,}000 \\
-            httpflood  & 1{,}000 & 0{,}000 \\
-            icmpflood  & 0{,}998 & 0{,}003 \\
-            slowloris  & 0{,}996 & 0{,}004 \\
-            synflood   & 1{,}000 & 0{,}000 \\
+            BENIGN     & 0{,}975 & 0{,}067 \\
+            httpflood  & 0{,}856 & 0{,}291 \\
+            icmpflood  & 0{,}984 & 0{,}044 \\
+            slowloris  & 0{,}966 & 0{,}079 \\
+            synflood   & 0{,}872 & 0{,}296 \\
             \hline
       \end{tabular}
 \end{table}
 
-La Tabla~\ref{tbl:recall} detalla el recall por clase. El modelo no genera falsos positivos sobre tráfico benigno (0{,}0\%~$\pm$~0{,}0\%) en ninguna ejecución. Las dos clases con recall ligeramente inferior a 1 son icmpflood (una ventana clasificada como synflood) y slowloris (dos ventanas clasificadas como httpflood). El tiempo hasta la primera alarma es 0{,}0~s en todos los ataques: el modelo detecta el ataque en la primera ventana de medición.
+La Tabla~\ref{tbl:recall} detalla el recall por clase. Sobre tráfico benigno los falsos positivos quedan en 2{,}5\%~$\pm$~6{,}7\%. Los recalls más altos son icmpflood (0{,}984) y slowloris (0{,}966); los dos floods con recall más bajo son httpflood (0{,}856) y synflood (0{,}872), porque bajo los perfiles sigilosos su firma se acerca al tráfico benigno. El tiempo hasta la primera alarma es 0{,}2~s para icmpflood, 0{,}6~s para slowloris, 1{,}4~s para synflood y 4{,}3~s para httpflood: aun en los perfiles difíciles el modelo reacciona en segundos.
 
-La Fig.~\ref{fig:confusion} muestra la matriz de confusión acumulada sobre los cinco folds. La diagonal es prácticamente perfecta: solo 3 errores sobre 2\,960 ventanas.
+La Fig.~\ref{fig:confusion} muestra la matriz de confusión acumulada sobre los 20 folds. La diagonal domina: 706 errores sobre 11\,698 ventanas (6{,}0\%), concentrados en ventanas de synflood y httpflood marcadas como benignas durante los perfiles sigilosos.
 
 \begin{figure}[tbp]
       \centering
-      \includegraphics[width=\columnwidth]{figures/matriz_confusion.png} \caption{Matriz de confusión acumulada sobre los 5 folds. Los únicos errores son 1 ventana icmpflood $\to$ synflood y 2 ventanas slowloris $\to$ httpflood.}
+      \includegraphics[width=\columnwidth]{figures/matriz_confusion.png} \caption{Matriz de confusión acumulada sobre los 20 folds. Los errores se concentran en ventanas de synflood y httpflood clasificadas como BENIGN bajo los perfiles sigilosos y de baja intensidad.}
 
       \label{fig:confusion}
 \end{figure}
 
-La Fig.~\ref{fig:features} presenta las diez features con mayor peso en el bosque. Las dos más discriminantes son contadores del portal: \texttt{conns\_roll3} (media móvil de conexiones) y \texttt{core\_flows} (entradas activas en la tabla de flujos del core), seguidas de métricas de servidor. A partir de la sexta posición aparecen features SDN (\texttt{sdn\_pkts\_tcp}, \texttt{sdn\_pkts\_icmp}), confirmando el aporte complementario de la telemetría OpenFlow.
+La Fig.~\ref{fig:features} presenta las diez features con mayor peso en el bosque. Las dos más discriminantes son \texttt{rx\_pps\_roll3} (media móvil de la tasa de paquetes al portal) y \texttt{conns\_roll3} (media móvil de conexiones), seguidas de métricas de servidor (\texttt{server\_rx\_pps}, \texttt{server\_conns}). A partir de la octava posición aparecen features SDN (\texttt{sdn\_frac\_icmp\_roll}, \texttt{sdn\_mean\_pkts\_per\_flow}, \texttt{sdn\_pkts\_icmp}), confirmando el aporte complementario de la telemetría OpenFlow.
 
 \begin{figure}[tbp]
       \centering
@@ -320,13 +320,13 @@ la víctima.
 
 \FloatBarrier
 \section{Discusión}\label{sec:discusion}
-La prueba respalda la hipótesis para las cinco clases: el modelo supera 0,90 de F1 macro sin IP y generaliza hacia un laboratorio retenido. El F1 macro de 0{,}999 del detector por ventana debe leerse con cautela y no como una afirmación de rendimiento en producción: a resolución de un segundo las ventanas de ataque presentan firmas muy marcadas frente al tráfico benigno, y la evaluación es de laboratorio (\emph{leave-one-run-out} sobre cinco ejecuciones), no un despliegue en línea sobre una red real. El resultado más informativo no es la cifra absoluta sino la ablación: que la telemetría OpenFlow aporte $+$0{,}054 de F1 macro, y que sea decisiva para distinguir ICMP de SYN, es la evidencia concreta de que las señales propias de SDN tienen valor discriminante que los datasets no-SDN no ofrecen. La diferencia entre SYN y Slowloris también muestra por qué conviene unir clasificación de flujo con una sonda de servicio: más paquetes no implica necesariamente una página menos disponible.
+La prueba respalda la hipótesis para las cinco clases: el modelo supera 0,90 de F1 macro sin IP y generaliza hacia un laboratorio retenido. Para el detector por ventana evitamos la lectura ingenua de un F1 cercano a 1: al añadir perfiles de ataque sigilosos, de baja intensidad, en pulsos y en rampa, el F1 macro honesto baja a 0{,}918~$\pm$~0{,}149 (\emph{leave-one-run-out} sobre 20 corridas). La brecha entre entrenamiento y prueba tiene mediana por corrida de $-0{,}011$ --el modelo no memoriza-- y solo se dispara en las pocas corridas del perfil sigiloso, donde el ataque es casi indistinguible del tráfico normal. La prueba más exigente, dejar un perfil completo fuera del entrenamiento, da F1 macro medio 0{,}742 con features absolutas y 0{,}764 con features relativas a la línea base de cada corrida; estos, y no un valor cercano a 1, son los números defendibles. Frente a cuatro ataques nunca vistos (\texttt{ackflood}, \texttt{udpflood}, \texttt{slowpost} y \texttt{multivector}) el detector da la alarma en el 97\% de las ventanas de ataque usando features relativas. El resultado más informativo sigue siendo la ablación: que la telemetría OpenFlow aporte $+$0{,}092 de F1 macro, y que sea decisiva para distinguir ICMP de SYN, es la evidencia concreta de que las señales propias de SDN tienen valor discriminante que los datasets no-SDN no ofrecen. La diferencia entre SYN y Slowloris también muestra por qué conviene unir clasificación de flujo con una sonda de servicio: más paquetes no implica necesariamente una página menos disponible.
 
 \subsection{Limitaciones y mejoras futuras}
 El resultado sale aún de alumnos emulados. El dataset híbrido (Wireshark + ataque simulado) queda listo en el código y se actualiza al recibir los pcap autorizados. Cada escenario dura 120~s. ICMP suma 638 flujos en el conjunto por flujo y 129 en la prueba de Agrarias; en el dataset por ventana, icmpflood tiene 600 ventanas y presentó 1 error de clasificación. El clasificador no corre dentro de Ryu; trabaja sobre datos ya capturados. Trabajo futuro: repetir la prueba con el fondo Wireshark, un escenario mixto de cuatro vectores a la vez, y despliegue en línea dentro del controlador.
 
 \section{Conclusiones}\label{sec:conclusiones}
-Campus-DDoS-SDN es un banco de pruebas reproducible, de un solo comando y sin dependencia de internet en vivo, que genera un dataset DDoS multiclase en el que el tráfico benigno y cuatro vectores de ataque conviven en la misma captura contra un único portal. El etiquetado por emisor conserva tráfico benigno dentro de la captura atacada, y la partición por laboratorio ofrece una prueba más exigente que un corte aleatorio. Sobre los flujos ya terminados, un bosque aleatorio entrenado sin IP, puertos ni tiempo alcanza un F1 macro de \FmacroEs\ en el laboratorio retenido de Ciencias Agrarias; sobre el dataset por ventana permite la detección temprana con F1 macro de 0{,}999, donde la telemetría OpenFlow aporta $+$0{,}054 y resulta decisiva para separar ICMP de SYN. Esto confirma el aporte central del trabajo: las señales propias de SDN, ausentes en los datasets no-SDN reutilizados, tienen valor discriminante medible. 
+Campus-DDoS-SDN es un banco de pruebas reproducible, de un solo comando y sin dependencia de internet en vivo, que genera un dataset DDoS multiclase en el que el tráfico benigno y cuatro vectores de ataque conviven en la misma captura contra un único portal. El etiquetado por emisor conserva tráfico benigno dentro de la captura atacada, y la partición por laboratorio ofrece una prueba más exigente que un corte aleatorio. Sobre los flujos ya terminados, un bosque aleatorio entrenado sin IP, puertos ni tiempo alcanza un F1 macro de \FmacroEs\ en el laboratorio retenido de Ciencias Agrarias; sobre el dataset por ventana permite la detección temprana con F1 macro de 0{,}918 sobre 20 corridas que cubren cinco perfiles de intensidad (y hasta 0{,}764 dejando un perfil entero fuera del entrenamiento), donde la telemetría OpenFlow aporta $+$0{,}092 y resulta decisiva para separar ICMP de SYN. Esto confirma el aporte central del trabajo: las señales propias de SDN, ausentes en los datasets no-SDN reutilizados, tienen valor discriminante medible. 
 
 Disponibilidad, tasa de paquetes y clasificación describen aspectos distintos del incidente: solo Slowloris deja el portal caído pese a su baja tasa de paquetes. El resultado, con alumnos emulados, es la base sobre la que se solicita autorización para incorporar tráfico benigno real de la UNCP, sin sacar el ataque del contenedor.
 
