@@ -158,6 +158,14 @@
                       <ul class="tl-legend" id="tl-legend"></ul>
                     </div>
 
+                    <div id="fld-perfil">
+                      <label class="field">
+                        <span class="field-l">Forma del ataque</span>
+                        <select id="f-perfil"></select>
+                        <span class="field-h" id="f-perfil-h"></span>
+                      </label>
+                    </div>
+
                     <div id="int-list" class="int-list"></div>
 
                     <div class="grid2">
@@ -182,7 +190,11 @@
                         <label class="field">
                           <span class="field-l">Semilla</span>
                           <input type="number" id="f-seed" placeholder="Sin semilla" inputmode="numeric">
-                          <span class="field-h">Queda registrada en el meta.json.</span>
+                          <span class="field-h">Queda registrada en el meta.json. También sortea las intensidades de la forma de ataque.</span>
+                        </label>
+                        <label class="field">
+                          <span class="field-l"><input type="checkbox" id="f-benign-var"> Carga de alumnos variable</span>
+                          <span class="field-h">Sortea cuántos alumnos navegan y con qué ritmo. Hace que el tráfico normal a veces se parezca a un ataque suave.</span>
                         </label>
                       </div>
                     </details>

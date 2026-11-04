@@ -28,12 +28,15 @@ import csv
 import json
 import math
 import os
+import re
 
 from paths import metrics_dir, processed_dir, raw_dir
 from roles import SCENARIOS
 
 # Columnas de referencia (NO son features: el entrenamiento las descarta).
-REF_FIELDS = ['timestamp', 'elapsed_s', 'scenario', 'run']
+# 'profile' es el perfil de ataque de la corrida (normal, bajo, sigiloso,
+# pulsos, rampa): sirve para evaluar por perfil, no es una feature.
+REF_FIELDS = ['timestamp', 'elapsed_s', 'scenario', 'run', 'profile']
 
 # Features que salen de la sonda y los contadores del portal.
 # core_flows sale de la tabla OpenFlow del switch core: es un dato SDN, y por
@@ -223,7 +226,21 @@ def label_window(base, elapsed, meta):
         # Meta nueva (trae onset_planned_s) sin inicio registrado: el ataque
         # nunca arranco, todo fue benigno. Meta vieja: entera con el escenario.
         return 'BENIGN' if 'onset_planned_s' in meta else base
-    return base if elapsed >= int(start) else 'BENIGN'
+    offset = elapsed - int(start)
+    if offset < 0:
+        return 'BENIGN'
+    # Ataque a pulsos: la ventana es ataque solo si cae en un tramo ON. La
+    # ventana `start` es la primera que contiene trafico de ataque (offset 0).
+    # Ventanas ON: offsets 0..on_s (on_s + 1 ventanas): la ultima recoge la
+    # cola del pulso (arranque de hping3/curl + el timeout corta un poco
+    # despues). En una corrida real ON 3 s / OFF 8 s esa ventana traia ~400
+    # pps frente a ~200 del trafico normal: es ataque, no BENIGN.
+    if meta.get('attack_mode') == 'pulsos':
+        on_s = int(meta.get('pulse_on_s') or 0)
+        off_s = int(meta.get('pulse_off_s') or 0)
+        if on_s > 0 and off_s > 0 and offset % (on_s + off_s) > on_s:
+            return 'BENIGN'
+    return base
 
 
 # --------------------------------------------------------------------------
@@ -269,6 +286,7 @@ def build_run(run_name, base, run_id):
             'elapsed_s': int(_num(row.get('elapsed_s'))),
             'scenario': base,
             'run': run_id,
+            'profile': meta.get('attack_profile') or 'normal',
             'server_rx_pps': rx_pps,
             'server_rx_bps': _num(row.get('server_rx_bps')),
             'server_conns': conns,
@@ -322,6 +340,11 @@ def discover_runs():
         run_id = parts[1] if len(parts) > 1 else 'base'
         if base in SCENARIOS:
             runs.append((run_name, base, run_id))
+    # ONLY_TAGS=regex arma solo las corridas cuya etiqueta calza (p.ej. las de
+    # una campana: 'mac'), y SI escribe el ventanas.csv combinado de esas.
+    patron = os.environ.get('ONLY_TAGS', '').strip()
+    if patron:
+        runs = [r for r in runs if re.search(patron, r[2])]
     # ONLY_RUNS=a,b arma solo esas corridas (lo usa la interfaz web).
     solo = [x.strip() for x in os.environ.get('ONLY_RUNS', '').split(',') if x.strip()]
     if solo:

@@ -11,6 +11,7 @@ const C = {
   sel: null,               // escenario elegido (modo single)
   multi: new Set(),        // ataques marcados (modo multi)
   valores: {},             // intensidades escritas: VARIABLE -> texto
+  perfil: 'normal',        // forma del ataque (PERFILES en ui/server/catalog.py)
   abierto: true,
   vistoCorrida: false,
 };
@@ -96,8 +97,21 @@ function pintarLado() {
     mezcla.replaceChildren(...[...C.multi].map((id) => h('li', null, ico((cat[id] && cat[id].icono) || 'generic'), h('b', null, (cat[id] && cat[id].nombre) || id))));
   }
   $('#fld-onset').hidden = !multi && info.id === 'baseline';
+  $('#fld-perfil').hidden = !multi && info.id === 'baseline';
+  pintarPerfiles();
   pintarIntensidades();
   pintarFormulario();
+}
+
+function pintarPerfiles() {
+  const sel = $('#f-perfil');
+  const perfiles = (S.env && S.env.perfiles) || [];
+  if (sel.options.length !== perfiles.length) {
+    sel.replaceChildren(...perfiles.map((p) => h('option', { value: p.id }, p.nombre)));
+  }
+  sel.value = C.perfil;
+  const p = perfiles.find((x) => x.id === C.perfil);
+  $('#f-perfil-h').textContent = p ? p.descripcion : '';
 }
 
 function pintarIntensidades() {
@@ -105,7 +119,10 @@ function pintarIntensidades() {
   const lista = atacantes().filter((a) => a.intensidad);
   caja.replaceChildren(...lista.map((a) => {
     const i = a.intensidad;
-    const input = h('input', { type: 'number', min: i.min, max: i.max, placeholder: String(i.defecto), inputmode: 'numeric', 'data-env': i.env });
+    // Con una forma de ataque distinta de 'normal' la intensidad la sortea el
+    // perfil; escribir un valor aqui lo fija igual (gana sobre el perfil).
+    const ph = C.perfil === 'normal' ? String(i.defecto) : 'según la forma';
+    const input = h('input', { type: 'number', min: i.min, max: i.max, placeholder: ph, inputmode: 'numeric', 'data-env': i.env });
     input.value = C.valores[i.env] || '';
     input.addEventListener('input', () => { C.valores[i.env] = input.value; pintarFormulario(); });
     return h('label', { class: 'field' },
@@ -184,7 +201,8 @@ async function lanzar() {
   if (f.err || (C.modo === 'single' && !C.sel) || (C.modo === 'multi' && C.multi.size < 2)) return;
   const cuerpo = { scenario: C.modo === 'multi' ? 'multivector' : C.sel.id, duration: f.duracion, intensities: f.intensidades };
   if (C.modo === 'multi') cuerpo.attacks = [...C.multi];
-  if (f.hayAtaque) cuerpo.onset_s = f.inicio;
+  if (f.hayAtaque) { cuerpo.onset_s = f.inicio; cuerpo.attack_profile = C.perfil; }
+  if ($('#f-benign-var').checked) cuerpo.benign_variable = true;
   for (const [campo, id] of [['run_tag', 'f-tag'], ['students_per_area', 'f-students'], ['bots_per_area', 'f-bots'], ['seed', 'f-seed']]) {
     const v = $('#' + id).value.trim(); if (v) cuerpo[campo] = v;
   }
@@ -221,6 +239,11 @@ function pintarPlegado() {
   else chips.push(h('li', null, ico((cat[st.scenario] && cat[st.scenario].icono) || 'generic'), h('b', null, (cat[st.scenario] && cat[st.scenario].nombre) || st.scenario)));
   chips.push(h('li', null, ico('clock'), st.duration + ' s'));
   if (st.scenario !== 'baseline') chips.push(h('li', null, ico('bolt'), 'ataque desde el segundo ' + (st.meta.onset_planned_s != null ? st.meta.onset_planned_s : cfg.onset_s)));
+  if (cfg.perfil && cfg.perfil !== 'normal') {
+    const p = ((S.env && S.env.perfiles) || []).find((x) => x.id === cfg.perfil);
+    chips.push(h('li', null, ico('sliders'), 'forma: ' + (p ? p.nombre : cfg.perfil)));
+  }
+  if (cfg.carga_variable) chips.push(h('li', null, 'carga de alumnos variable'));
   for (const [k, v] of Object.entries(cfg.intensities || {})) chips.push(h('li', null, k + ' ' + v));
   resumen.replaceChildren(...chips);
 }
@@ -235,6 +258,7 @@ export function initConfig() {
   $('#mode-single').addEventListener('click', () => cambiarModo('single'));
   $('#mode-multi').addEventListener('click', () => cambiarModo('multi'));
   for (const id of ['f-duration', 'f-onset']) $('#' + id).addEventListener('input', pintarFormulario);
+  $('#f-perfil').addEventListener('change', (e) => { C.perfil = e.target.value; pintarPerfiles(); pintarIntensidades(); });
   $('#btn-launch').addEventListener('click', lanzar);
   $('#btn-cfg-toggle').addEventListener('click', () => { C.abierto = !C.abierto; pintarPlegado(); });
   on('env', renderConfig);

@@ -19,6 +19,23 @@ from .config import SCENARIOS_FILE
 
 GRUPOS = ('Referencia', 'Volumen', 'Aplicación', 'Cupos de conexión', 'Combinado')
 
+# Perfiles de ataque (forma de atacar). Los valores reales viven en
+# scripts/mininet/roles.py (PERFILES): aqui solo como se presentan. Los ids
+# tienen que coincidir con los de roles.py.
+PERFILES = (
+    {'id': 'normal', 'nombre': 'Normal',
+     'descripcion': 'Intensidad fija de siempre. Fácil de detectar: sirve de referencia.'},
+    {'id': 'bajo', 'nombre': 'Baja intensidad',
+     'descripcion': 'Pocos paquetes o conexiones por PC (sorteados con la semilla). Se acerca al tráfico normal.'},
+    {'id': 'sigiloso', 'nombre': 'Sigiloso',
+     'descripcion': 'Muy baja intensidad, 1 PC infectada por área y HTTP flood que imita a un alumno (páginas al azar, pausas irregulares).'},
+    {'id': 'pulsos', 'nombre': 'A pulsos',
+     'descripcion': 'Ataca a ráfagas: unos segundos sí (ON) y varios no (OFF). Las ventanas OFF quedan como BENIGN.'},
+    {'id': 'rampa', 'nombre': 'Rampa',
+     'descripcion': 'Las PCs infectadas se suman de a una durante 40-60 s: al principio ataca una sola.'},
+)
+PERFIL_IDS = tuple(p['id'] for p in PERFILES)
+
 CATALOGO = {
     'baseline': {
         'grupo': 'Referencia', 'icono': 'baseline', 'nombre': 'Sin ataque', 'forma': None,
@@ -34,7 +51,7 @@ CATALOGO = {
         'agota': 'La tabla de conexiones a medio abrir y el ancho de banda del portal.',
         'firma': 'La tasa de paquetes al portal es la más alta de todos los ataques; los flujos son de uno o dos paquetes con bandera SYN.',
         'herramienta': 'hping3 -S -p 80',
-        'intensidad': {'env': 'SYN_PPS', 'etiqueta': 'Paquetes SYN por segundo, por PC', 'defecto': 20, 'min': 5, 'max': 60},
+        'intensidad': {'env': 'SYN_PPS', 'etiqueta': 'Paquetes SYN por segundo, por PC', 'defecto': 20, 'min': 1, 'max': 60},
     },
     'httpflood': {
         'grupo': 'Aplicación', 'icono': 'http', 'nombre': 'HTTP flood', 'forma': 'app',
@@ -50,7 +67,7 @@ CATALOGO = {
         'agota': 'Los cupos de conexión del portal (30).',
         'firma': 'Pocos paquetes por segundo, pero el portal deja de responder: casi todas las sondas del alumno fallan.',
         'herramienta': 'slowhttptest -H',
-        'intensidad': {'env': 'SLOWLORIS_CONNS', 'etiqueta': 'Conexiones abiertas, por PC', 'defecto': 20, 'min': 5, 'max': 40},
+        'intensidad': {'env': 'SLOWLORIS_CONNS', 'etiqueta': 'Conexiones abiertas, por PC', 'defecto': 20, 'min': 1, 'max': 40},
     },
     'icmpflood': {
         'grupo': 'Volumen', 'icono': 'icmp', 'nombre': 'ICMP flood', 'forma': 'volumen',
@@ -58,7 +75,7 @@ CATALOGO = {
         'agota': 'El ancho de banda.',
         'firma': 'Tráfico ICMP: en la telemetría SDN, la fracción de paquetes ICMP pasa de cero a más de la mitad.',
         'herramienta': 'ping (kernel)',
-        'intensidad': {'env': 'ICMP_PPS', 'etiqueta': 'Pings por segundo, por PC', 'defecto': 20, 'min': 5, 'max': 60},
+        'intensidad': {'env': 'ICMP_PPS', 'etiqueta': 'Pings por segundo, por PC', 'defecto': 20, 'min': 1, 'max': 60},
     },
     'udpflood': {
         'grupo': 'Volumen', 'icono': 'udp', 'nombre': 'UDP flood', 'forma': 'volumen',
@@ -66,7 +83,7 @@ CATALOGO = {
         'agota': 'CPU y ancho de banda.',
         'firma': 'Tráfico UDP: en la telemetría SDN, la fracción de paquetes UDP pasa de cero a más de la mitad.',
         'herramienta': 'hping3 --udp -p 80',
-        'intensidad': {'env': 'UDP_PPS', 'etiqueta': 'Datagramas por segundo, por PC', 'defecto': 20, 'min': 5, 'max': 60},
+        'intensidad': {'env': 'UDP_PPS', 'etiqueta': 'Datagramas por segundo, por PC', 'defecto': 20, 'min': 1, 'max': 60},
     },
     'ackflood': {
         'grupo': 'Volumen', 'icono': 'ack', 'nombre': 'ACK flood', 'forma': 'volumen',
@@ -74,7 +91,7 @@ CATALOGO = {
         'agota': 'La tabla de estado de conexiones y el ancho de banda.',
         'firma': 'Por ventana se parece a un SYN flood: la bandera ACK solo se distingue en los flujos, no en la telemetría SDN.',
         'herramienta': 'hping3 -A -p 80',
-        'intensidad': {'env': 'ACK_PPS', 'etiqueta': 'Paquetes ACK por segundo, por PC', 'defecto': 20, 'min': 5, 'max': 60},
+        'intensidad': {'env': 'ACK_PPS', 'etiqueta': 'Paquetes ACK por segundo, por PC', 'defecto': 20, 'min': 1, 'max': 60},
     },
     'slowpost': {
         'grupo': 'Cupos de conexión', 'icono': 'post', 'nombre': 'Slow POST (RUDY)', 'forma': 'lento',
@@ -82,7 +99,7 @@ CATALOGO = {
         'agota': 'Los cupos de conexión del portal.',
         'firma': 'Las conexiones abiertas se disparan por encima del cupo y el portal empieza a responder 503.',
         'herramienta': 'slowhttptest -B',
-        'intensidad': {'env': 'SLOWPOST_CONNS', 'etiqueta': 'Conexiones abiertas, por PC', 'defecto': 20, 'min': 5, 'max': 40},
+        'intensidad': {'env': 'SLOWPOST_CONNS', 'etiqueta': 'Conexiones abiertas, por PC', 'defecto': 20, 'min': 1, 'max': 40},
     },
     'multivector': {
         'grupo': 'Combinado', 'icono': 'multi', 'nombre': 'Varios a la vez', 'forma': 'mixto',

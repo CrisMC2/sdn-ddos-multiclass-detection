@@ -5,7 +5,7 @@ import re
 import time
 from dataclasses import dataclass, field
 
-from .catalog import attack_ids, load_scenarios, scenario_info
+from .catalog import PERFIL_IDS, attack_ids, load_scenarios, scenario_info
 
 
 class LaunchError(ValueError):
@@ -72,6 +72,15 @@ def parse(body):
         params['BOTS_PER_AREA'] = bots
     if seed is not None:
         params['RUN_SEED'] = seed
+
+    # Forma del ataque (perfil) y carga de alumnos variable.
+    perfil = (body.get('attack_profile') or 'normal').strip().lower()
+    if perfil not in PERFIL_IDS:
+        raise LaunchError('Forma de ataque desconocida: %r' % perfil)
+    if perfil != 'normal' and scenario != 'verify':
+        params['ATTACK_PROFILE'] = perfil
+    if body.get('benign_variable') and scenario != 'verify':
+        params['BENIGN_LOAD'] = 'variable'
 
     # Que vectores intervienen: el propio escenario, o los elegidos si es multivector.
     attacks = []

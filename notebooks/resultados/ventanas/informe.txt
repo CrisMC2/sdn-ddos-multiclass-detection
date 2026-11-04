@@ -1,52 +1,72 @@
 Detector por ventana de tiempo
 
-Particion: leave-one-run-out (5 corridas)  (5 folds)
-Ventanas: 2960  |  features: 26 (red 12, sdn 14)
+Datos: data/processed/ventanas/ventanas.csv
+Particion: leave-one-run-out (10 corridas)  (10 folds)
+Ventanas: 5829  |  features: 24 (red 8, sdn 16) + 15 relativas
+Escenarios para entrenar: baseline, synflood, httpflood, slowloris, icmpflood
+Ataques nunca vistos (solo prueba): ninguno
+Perfiles: normal (10 corridas)
 
 == Comparacion de modelos (todas las features) ==
 Modelo                 F1 macro        F1 binario
-bosque                 0.999 +/- 0.001   1.000 +/- 0.000
-gradient_boosting      0.999 +/- 0.001   1.000 +/- 0.000
-regresion_logistica    0.997 +/- 0.004   0.999 +/- 0.001
+bosque                 0.999 +/- 0.001   1.000 +/- 0.001
+gradient_boosting      0.999 +/- 0.001   0.999 +/- 0.001
+regresion_logistica    0.999 +/- 0.002   0.999 +/- 0.001
 
 == Ablacion de features (bosque aleatorio) ==
 Grupo        F1 macro        aporta
-red          0.945 +/- 0.104
-sdn          0.892 +/- 0.115
+red          0.962 +/- 0.081
+sdn          0.979 +/- 0.010
 todas        0.999 +/- 0.001
+relativas    0.999 +/- 0.001
+todas+rel    0.999 +/- 0.002
 
-Aporte del SDN (todas - red): +0.054 de F1 macro.
+Aporte del SDN (todas - red): +0.037 de F1 macro.
 
 == Detalle (bosque aleatorio, todas las features) ==
 F1 macro:   0.999 +/- 0.001
-F1 binario: 1.000 +/- 0.000
+F1 binario: 1.000 +/- 0.001
 Falsos positivos en benigno: 0.0% +/- 0.0%
 
 Recall por clase (media entre folds):
   BENIGN      1.000 +/- 0.000
-  httpflood   1.000 +/- 0.000
-  icmpflood   0.998 +/- 0.003
-  slowloris   0.996 +/- 0.004
-  synflood    1.000 +/- 0.000
+  httpflood   0.999 +/- 0.003
+  icmpflood   0.999 +/- 0.003
+  slowloris   1.000 +/- 0.000
+  synflood    0.999 +/- 0.003
 
-Tiempo hasta la primera alarma (media entre folds, s):
+Retardo de deteccion (s desde el inicio real del ataque):
   httpflood   0.0 +/- 0.0
-  icmpflood   0.0 +/- 0.0
+  icmpflood   0.1 +/- 0.3
   slowloris   0.0 +/- 0.0
-  synflood    0.0 +/- 0.0
+  synflood    0.1 +/- 0.3
+
+Brecha entrenamiento - prueba (sobreajuste clasico):
+  F1 macro entrenamiento 1.000 | prueba 0.999 | brecha +0.001
+
+== Separabilidad (arbol de 3 niveles, mismas particiones) ==
+F1 macro: 0.995 +/- 0.003
+  -> Un punado de umbrales ya separa las clases: el escenario es facil.
+
 
 Columnas que mas pesan (bosque sobre todo el dataset):
-  0.140  conns_roll3
-  0.138  core_flows
-  0.086  server_conns
-  0.069  http_ok
-  0.060  server_rx_bps
-  0.055  sdn_pkts_tcp
-  0.049  sdn_pkts_icmp
-  0.046  sdn_pkts_icmp_roll
+  0.109  server_conns
+  0.109  conns_roll3
+  0.103  rx_pps_roll3
+  0.103  sdn_flows_total
+  0.093  server_rx_pps
+  0.078  server_rx_bps
+  0.075  http_ok
+  0.065  sdn_core_flows
 
 Lectura honesta
-  F1 macro = 0.999 +/- 0.001 sobre 5 folds.
-  Con 1 sola corrida la desviacion es 0 y el numero es optimista:
-  repite varias (run_scenario.sh repeat N) para que sea defendible.
+  F1 macro (corrida fuera) = 0.999 +/- 0.001 sobre 10 folds.
+  Brecha entrenamiento-prueba de 0.001: no es sobreajuste clasico.
+  Pero un arbol de 3 niveles ya da 0.995: las clases se separan
+  con pocos umbrales y el F1 alto describe al simulador, no al
+  modelo. Regularizar no lo arregla: hacen falta datos mas dificiles.
+  Solo hay corridas de perfil 'normal'. Genera ataques dificiles (ver
+  docs/fases_overfitting.md):
+    bash scripts/docker/run_scenario.sh dificil 2 120
+    WINDOWS_DIR=ventanas_dificil ONLY_TAGS='...' python3 scripts/mininet/build_windows.py
   La ablacion dice cuanto aporta el SDN frente a usar solo la red.

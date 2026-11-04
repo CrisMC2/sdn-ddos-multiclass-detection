@@ -7,7 +7,7 @@ import zipfile
 from flask import Blueprint, jsonify, request, send_file
 
 from . import datasets, dockerctl, jobs, runfiles
-from .catalog import GRUPOS, attack_ids, load_scenarios, scenario_info
+from .catalog import GRUPOS, PERFILES, attack_ids, load_scenarios, scenario_info
 from .config import BENIGN_PORT, DATA_DIR, IMAGE
 from .launch import LaunchError, parse
 
@@ -28,6 +28,7 @@ def env():
         'grupos': list(GRUPOS),
         'ataques': attack_ids(),
         'scenarios': [scenario_info(s) for s in load_scenarios()],
+        'perfiles': list(PERFILES),
     })
 
 

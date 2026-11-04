@@ -192,6 +192,8 @@ def start(launch):
                             if k.endswith(('_PPS', '_CONNS', '_WORKERS'))},
             'students_per_area': launch.params.get('STUDENTS_PER_AREA'),
             'bots_per_area': launch.params.get('BOTS_PER_AREA'),
+            'perfil': launch.params.get('ATTACK_PROFILE', 'normal'),
+            'carga_variable': launch.params.get('BENIGN_LOAD') == 'variable',
         }
         threading.Thread(target=_worker, args=(launch,), daemon=True).start()
     finally:
@@ -236,5 +238,10 @@ def snapshot():
             'onset_planned_s': meta.get('onset_planned_s'),
             'datapath': meta.get('datapath'),
             'bot_attacks': meta.get('bot_attacks', {}),
+            'attack_profile': meta.get('attack_profile'),
+            'attack_mode': meta.get('attack_mode'),
+            'pulse_on_s': meta.get('pulse_on_s'),
+            'pulse_off_s': meta.get('pulse_off_s'),
+            'bot_delays_s': meta.get('bot_delays_s', {}),
         },
     }

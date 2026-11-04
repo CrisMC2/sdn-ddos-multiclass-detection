@@ -74,6 +74,26 @@ Agregar un ataque: una línea en `scripts/mininet/scenarios.txt`, su generador e
   (baseline + 4 ataques); los marcados `extra` en `scenarios.txt` se piden por nombre
   o con `SCENARIO_SET=extended`.
 
+## Ataques difíciles de detectar
+
+Con las intensidades por defecto un árbol de 3 niveles ya separa las clases
+(F1 0,995): el modelo aprende los números del simulador. **Forma del ataque**
+(en Parámetros) cambia cómo ataca la botnet:
+
+| Forma | Qué hace |
+|---|---|
+| Normal | intensidad fija de siempre (referencia) |
+| Baja intensidad | 4-8 pps / 5-8 conexiones por PC, sorteado con la semilla |
+| Sigiloso | 1-3 pps, 1 PC por área, HTTP flood que imita a un alumno |
+| A pulsos | ráfagas ON 3-6 s / OFF 8-15 s; las ventanas OFF quedan BENIGN |
+| Rampa | las PCs se suman de a una durante 40-60 s |
+
+*Carga de alumnos variable* (Opciones adicionales) sortea cuántos alumnos
+navegan y su ritmo. Los valores viven en `scripts/mininet/roles.py` (`PERFILES`).
+
+La campaña completa (ataques difíciles + ataques nunca vistos) se corre por
+terminal en la PC con Windows: ver `docs/fases_overfitting.md`.
+
 ## Falta (siguientes fases)
 
 Biblioteca de corridas anteriores y repeticiones tipo `repeat N` desde la interfaz.
