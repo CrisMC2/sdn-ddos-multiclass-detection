@@ -1,0 +1,9 @@
+escenario,corridas,deteccion,fpr,como,features
+ackflood,4,0.49722222222222223,0.25,"BENIGN 50%, synflood 50%",todas
+multivector,4,1.0,0.25,"slowloris 57%, icmpflood 43%",todas
+slowpost,4,1.0,0.23275862068965517,slowloris 100%,todas
+udpflood,4,0.49444444444444446,0.22413793103448276,"BENIGN 51%, synflood 49%",todas
+ackflood,4,0.875,0.0,"synflood 88%, BENIGN 12%",relativas
+multivector,4,1.0,0.0,"icmpflood 95%, slowloris 5%",relativas
+slowpost,4,1.0,0.0,slowloris 100%,relativas
+udpflood,4,0.9972222222222222,0.008620689655172414,"icmpflood 99%, synflood 0%",relativas
