@@ -251,6 +251,15 @@
                 <div class="chart-host" id="ch-lat"></div>
               </figure>
               <figure class="chart-card">
+                <figcaption><b>CPU del contenedor</b><span class="muted">% de un núcleo, puede pasar de 100</span></figcaption>
+                <div class="chart-host" id="ch-cpu"></div>
+              </figure>
+              <figure class="chart-card">
+                <figcaption><b>Memoria del contenedor</b><span class="muted">MiB</span></figcaption>
+                <div class="chart-host" id="ch-mem"></div>
+              </figure>
+              <p class="muted note res-note">CPU y memoria miden lo que cuesta <b>simular</b> la red entera (switches, hosts, ataque y captura), no solo al portal. Salen de <code>docker stats</code>, una muestra cada ~3 s, alineadas con el inicio del ataque.</p>
+              <figure class="chart-card">
                 <figcaption><b>¿Responde el portal?</b><span class="muted">una sonda por segundo</span></figcaption>
                 <div class="strip-host" id="ch-ok"></div>
                 <ul class="legend inline" aria-label="Leyenda de respuestas">

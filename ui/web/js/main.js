@@ -19,7 +19,9 @@ async function tick() {
     if (hayCorrida) {
       const m = await api('/api/metrics?n=600');
       if (m) S.rows = cleanRows(m.rows || []);
-    } else S.rows = [];
+      const rec = await api('/api/recursos');
+      S.recursos = rec ? rec.rows || [] : [];
+    } else { S.rows = []; S.recursos = []; }
     // Al terminar una corrida cambian el puerto y el contenedor: se vuelve a medir.
     if ((estabaActiva && !st.activo) || Date.now() - S.envAt > 10000) cargarEntorno();
     pintarFranja(st);

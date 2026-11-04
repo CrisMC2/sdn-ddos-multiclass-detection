@@ -25,9 +25,21 @@ export function renderSummary() {
     ['Respuestas correctas', ok],
     ['Muestras', (rs) => String(rs.length)],
   ];
+  // Rendimiento: lo que costo simular (docker stats), antes y durante el ataque.
+  const rec = S.recursos || [];
+  if (rec.length) {
+    const tramo = (i) => (as == null ? rec : (i === 0 ? rec.filter((r) => r.t < as) : rec.filter((r) => r.t >= as)));
+    const col = (k, f) => cols.map((_c, i) => { const rs = tramo(i); return rs.length ? f(rs.map((r) => r[k])) : '—'; });
+    const media = (v) => fmtInt(v.reduce((a, b) => a + b, 0) / v.length);
+    const pico = (v) => fmtInt(Math.max(...v));
+    filas.push(['CPU del contenedor (media, %)', (_rs, i) => col('cpu', media)[i]],
+      ['CPU del contenedor (pico, %)', (_rs, i) => col('cpu', pico)[i]],
+      ['Memoria del contenedor (media, MiB)', (_rs, i) => col('mem', media)[i]],
+      ['Memoria del contenedor (pico, MiB)', (_rs, i) => col('mem', pico)[i]]);
+  }
   $('#sum-table').replaceChildren(
     h('thead', null, h('tr', null, h('th', { scope: 'col' }, ''), cols.map(([t]) => h('th', { scope: 'col' }, t)))),
-    h('tbody', null, filas.map(([etq, fn]) => h('tr', null, h('td', null, etq), cols.map(([, rs]) => h('td', null, fn(rs)))))));
+    h('tbody', null, filas.map(([etq, fn]) => h('tr', null, h('td', null, etq), cols.map(([, rs], i) => h('td', null, fn(rs, i)))))));
 
   const archivos = st.archivos || [];
   $('#files-block').hidden = !archivos.length;

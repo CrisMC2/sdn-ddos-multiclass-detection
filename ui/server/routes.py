@@ -75,6 +75,16 @@ def convertir():
     return jsonify({'ok': True})
 
 
+@api.get('/recursos')
+def recursos():
+    """CPU y memoria del contenedor durante la corrida activa/ultima."""
+    job = jobs.JOB
+    if not job.run_name or job.scenario == 'verify':
+        return jsonify({'rows': []})
+    t0 = runfiles.read_meta(job.run_name).get('capture_start_ts')
+    return jsonify({'rows': runfiles.resource_rows(job.run_name, t0, job.duration or None)})
+
+
 @api.get('/descargar/<run_name>')
 def descargar(run_name):
     """ZIP con los CSV de una corrida (flujos y ventanas) y su meta.json, que

@@ -24,6 +24,8 @@
   /* Series (categorico, slots 1 y 2 del orden validado). */
   --s1: #2a78d6;   /* paquetes por segundo */
   --s2: #eb6834;   /* latencia */
+  --s3: #1baf7a;   /* CPU del contenedor */
+  --s4: #6250d6;   /* memoria del contenedor */
 
   /* Estado: solo para significar bien / critico, siempre con icono + texto. */
   --good: #0ca30c;
@@ -61,6 +63,8 @@
     --on-ink: #0e1620;
     --s1: #3987e5;
     --s2: #d95926;
+    --s3: #199e70;
+    --s4: #9085e9;
     --good-text: #0ca30c;
     --warning-text: #fab219;
     --critical-text: #ef7b7b;
@@ -81,6 +85,8 @@
   --on-ink: #0e1620;
   --s1: #3987e5;
   --s2: #d95926;
+  --s3: #199e70;
+  --s4: #9085e9;
   --good-text: #0ca30c;
   --warning-text: #fab219;
   --critical-text: #ef7b7b;

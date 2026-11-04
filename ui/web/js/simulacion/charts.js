@@ -76,7 +76,7 @@ function lineChart(host, o) {
     cl.setAttribute('x1', cx); cl.setAttribute('x2', cx);
     cd.setAttribute('cx', cx); cd.setAttribute('cy', cy);
     tt.replaceChildren(
-      h('div', { class: 'tt-h' }, 'Segundo ' + p.x),
+      h('div', { class: 'tt-h' }, 'Segundo ' + Math.round(p.x)),
       h('div', { class: 'tt-r' }, h('span', { class: 'tt-key', style: 'background:var(' + o.keyVar + ')' }),
         h('span', { class: 'tt-v' }, o.tipFmt(p.y)), h('span', { class: 'tt-n' }, o.name)));
     tt.hidden = false;
@@ -169,6 +169,18 @@ export function renderCharts() {
     pts: rows.map((r) => ({ x: r.t, y: r.lat })), xmax: dur, onset: as, cls: 'ch-s2', keyVar: '--s2',
     name: 'de latencia', endFmt: (v) => fmtInt(v) + ' ms', tipFmt: (v) => fmtInt(v) + ' ms',
     aria: 'Latencia de la sonda del alumno en milisegundos.' + (lastLat ? ' Último valor: ' + fmtInt(lastLat.lat) + ' milisegundos.' : ' Sin datos todavía.'),
+  });
+  const rec = S.recursos || [];
+  const ultCpu = rec[rec.length - 1];
+  lineChart($('#ch-cpu'), {
+    pts: rec.map((r) => ({ x: r.t, y: r.cpu })), xmax: dur, onset: as, cls: 'ch-s3', keyVar: '--s3',
+    name: 'de CPU', endFmt: (v) => fmtInt(v) + ' %', tipFmt: (v) => fmtInt(v) + ' %',
+    aria: 'CPU del contenedor en porcentaje de un núcleo.' + (ultCpu ? ' Último valor: ' + fmtInt(ultCpu.cpu) + ' por ciento.' : ' Sin datos todavía.'),
+  });
+  lineChart($('#ch-mem'), {
+    pts: rec.map((r) => ({ x: r.t, y: r.mem })), xmax: dur, onset: as, cls: 'ch-s4', keyVar: '--s4',
+    name: 'de memoria', endFmt: (v) => fmtInt(v) + ' MiB', tipFmt: (v) => fmtInt(v) + ' MiB',
+    aria: 'Memoria del contenedor en MiB.' + (ultCpu ? ' Último valor: ' + fmtInt(ultCpu.mem) + ' MiB.' : ' Sin datos todavía.'),
   });
   strip(st, rows);
 }
