@@ -35,6 +35,7 @@ from roles import (
     HTTP_FLOOD_WORKERS,
     ICMP_PPS,
     PAGES,
+    MULTIVECTOR_ATTACKS,
     SCENARIOS,
     SLOWLORIS_CONNS,
     SLOWPOST_CONNS,
@@ -285,6 +286,16 @@ def main():
     }
     meta.update(run_config())
 
+    # multivector: cada infectada lanza uno de los ataques elegidos (se
+    # reparten por turnos, asi cada laboratorio ve mas de un vector). El mapa
+    # IP -> ataque queda en el meta.json y es lo que usa pcap_to_csv.py para
+    # etiquetar cada flujo con SU ataque; la ventana lleva 'multivector'.
+    bot_attack = {}
+    if scenario == 'multivector':
+        for i, (bot_name, bot_ip) in enumerate(bots()):
+            bot_attack[bot_name] = MULTIVECTOR_ATTACKS[i % len(MULTIVECTOR_ATTACKS)]
+        meta['bot_attacks'] = {ip: bot_attack[nm] for nm, ip in bots()}
+
     def write_meta():
         with open(meta_path, 'w') as fh:
             json.dump(meta, fh, indent=2)
@@ -341,8 +352,13 @@ def main():
             info('*** C2 (%s) ordena el ataque a las PCs infectadas\n' % C2_NAME)
             info('*** Ataque %s desde %d PCs hacia %s (segundo %d de %d)\n' % (
                 scenario, len(meta['bots']), VICTIM_IP, elapsed_now, duration))
+            if bot_attack:
+                for vector in MULTIVECTOR_ATTACKS:
+                    n = sum(1 for v in bot_attack.values() if v == vector)
+                    info('    vector %s: %d PCs\n' % (vector, n))
             for name, _ip in bots():
-                start_attack(net.get(name), scenario, VICTIM_IP, max(duration - elapsed_now, 1))
+                start_attack(net.get(name), bot_attack.get(name, scenario),
+                             VICTIM_IP, max(duration - elapsed_now, 1))
             meta['attack_start_ts'] = attack_ts
             meta['attack_start_elapsed'] = elapsed_now + 1
             write_meta()

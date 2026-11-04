@@ -1,0 +1,19 @@
+/* Modulo Entorno: comprobaciones y prueba de caminos de red. */
+
+.checks { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); overflow: hidden; }
+.checks li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 4px 14px; align-items: start; padding: 14px 18px; }
+.checks li + li { border-top: 1px solid var(--line); }
+.checks .ic.st { width: 22px; height: 22px; margin-top: 1px; }
+.checks li.ok .st { color: var(--good); }
+.checks li.bad .st { color: var(--critical); }
+.checks li.unk .st { color: var(--ink-3); }
+.checks li.run .st { color: var(--ink-3); animation: spin 1.1s linear infinite; }
+.chk-t { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.chk-t b { font-weight: 600; }
+.chk-d { color: var(--ink-2); }
+.chk-fix { grid-column: 2; color: var(--ink-2); font-size: 13px; }
+.checks.compact { margin-top: 4px; }
+.checks.compact li { padding: 10px 16px; }
+
+.verify { margin-top: 8px; }
+.verify-note { margin-top: 10px; color: var(--ink-2); }

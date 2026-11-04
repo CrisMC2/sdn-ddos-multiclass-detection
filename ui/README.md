@@ -1,47 +1,77 @@
 # Interfaz del banco de pruebas
 
-Lanza una corrida del campus emulado, la mira en vivo y la detiene, sin escribir
-comandos. Llama a Docker directo desde Python, así que funciona igual en
-`cmd`, PowerShell, Git Bash, WSL, macOS y Linux.
+Configura, lanza y mira una simulación del campus emulado sin escribir comandos.
+Llama a Docker directo desde Python, así que funciona igual en `cmd`, PowerShell,
+Git Bash, WSL, macOS y Linux.
 
 ## Cómo usarla
 
 1. Abre Docker Desktop y espera a que diga «Engine running».
-2. Instala la dependencia (una sola vez): `pip install -r ui/requirements.txt`
+2. Una sola vez: `pip install -r ui/requirements.txt`
 3. Desde la raíz del repo: `python ui/app.py`
-4. Abre <http://127.0.0.1:8765>
+4. Abre <http://127.0.0.1:8765> (`Ctrl+C` en la terminal para cerrarla).
 
-Para cerrarla, `Ctrl+C` en esa terminal.
-
-## Lo que hace
+## Dos módulos
 
 - **Entorno**: revisa Docker, la imagen `ataque-sdn`, el puerto 8080 y el disco, y
   corre la prueba de caminos de red (alumno, infectada y C2 alcanzan el portal).
-- **Lanzar**: elige uno de los escenarios de `scripts/mininet/scenarios.txt`
-  (agregar uno ahí lo hace aparecer; su explicación vive en `CATALOGO` de `app.py`),
-  la duración, el segundo en que arranca el ataque y su intensidad.
-- **En vivo**: el campus, el tráfico, la respuesta del portal segundo a segundo, y
-  al final un resumen antes/durante el ataque y los archivos generados.
+- **Simulación**: todo en una pantalla.
+  - *Configuración* (se pliega a una línea al lanzar): **un ataque** o **varios a la
+    vez** (cada PC infectada lanza uno distinto; los flujos se etiquetan con su
+    ataque y el dataset por ventana como `multivector`), duración, inicio del
+    ataque e intensidades.
+  - *Campus*: el plano de la red con paquetes que recorren los enlaces (los
+    alumnos en azul, los de ataque en rojo, las respuestas del portal en anillo).
+    Cuando hay un ataque cambian el borde, el aviso, el portal y una línea en la
+    parte superior de la página. La cantidad de paquetes sale de las métricas reales.
+  - *Datos*: tarjetas, gráficos por segundo, resumen antes/durante y archivos.
 
-Una corrida deja en `data/` lo mismo que `run_scenario.sh`: pcap, `meta.json` y los
-CSV de métricas (`_interno`, `_sdn`, `_docker`). Si no pones etiqueta, usa una
-automática `uiHHMMSS`, para no pisar corridas como `r01..r10`.
+Una simulación deja en `data/` lo mismo que `run_scenario.sh`: pcap, `meta.json` y
+los CSV de métricas (`_interno`, `_sdn`, `_docker`). Sin etiqueta, usa `uiHHMMSS`
+para no pisar corridas como `r01..r10`.
+
+## Estructura
+
+```
+ui/
+├── app.py                lanzador (python ui/app.py)
+├── requirements.txt
+├── server/               backend (Flask)
+│   ├── config.py         rutas y constantes
+│   ├── catalog.py        explicación de cada escenario (agrega uno aquí)
+│   ├── dockerctl.py      hablar con Docker y el sistema
+│   ├── launch.py         validar el formulario de lanzamiento
+│   ├── jobs.py           la corrida activa (hilo, logs, docker stats)
+│   ├── runfiles.py       leer meta.json, métricas y archivos generados
+│   └── routes.py         endpoints /api/*
+└── web/                  la página (sin build, sin librerías, sin internet)
+    ├── index.html
+    ├── icons.svg         set de íconos
+    ├── css/              tokens, base, layout, components, entorno, simulacion, campus, charts
+    └── js/
+        ├── main.js       arranque y sondeo del estado
+        ├── core/         dom, api, bus, state, format, theme, router
+        ├── entorno/      módulo Entorno
+        └── simulacion/   config, campus, packets, stepper, tiles, charts, resumen
+```
+
+Agregar un ataque: una línea en `scripts/mininet/scenarios.txt`, su generador en
+`capture_campus.py`, y su explicación en `server/catalog.py`.
 
 ## Cosas que conviene saber
 
 - **Una sola copia a la vez.** El contenedor siempre se llama `ataque-sdn-run`;
-  lanzar otra corrida elimina el anterior. En Windows, además, dos servidores
-  pueden abrir el mismo puerto sin avisar. Por eso `app.py` se niega a arrancar si
-  el puerto ya está en uso y se niega a lanzar si hay un contenedor ajeno en marcha.
-  Si ves una copia vieja, ciérrala con `Ctrl+C` en su terminal.
-- **Otro puerto**: `set UI_PORT=8800` (Windows) o `UI_PORT=8800` (macOS/Linux) antes
-  de `python ui/app.py`.
-- Las intensidades ofrecidas están acotadas a los rangos que se probaron estables en
-  Open vSwitch; subirlas a niveles de un ataque real tumba el emulador.
-- **Sin internet**: no carga fuentes ni librerías externas.
+  lanzar otra simulación elimina el anterior. En Windows dos servidores pueden abrir
+  el mismo puerto sin avisar, por eso `app.py` no arranca si el puerto está en uso y
+  la interfaz se niega a lanzar si hay un contenedor ajeno en marcha.
+- Otro puerto: `set UI_PORT=8800` (Windows) o `UI_PORT=8800` (macOS/Linux).
+- Las intensidades están acotadas a los rangos estables de Open vSwitch.
+- `all` y `repeat` de `run_scenario.sh` siguen corriendo el conjunto base
+  (baseline + 4 ataques); los marcados `extra` en `scenarios.txt` se piden por nombre
+  o con `SCENARIO_SET=extended`.
 
-## Qué falta (siguientes fases)
+## Falta (siguientes fases)
 
-Convertir a CSV y armar el dataset por ventana desde la interfaz, una biblioteca de
+Convertir a CSV y armar el dataset por ventana desde la interfaz, biblioteca de
 corridas y repeticiones tipo `repeat N`. Hoy eso sigue siendo por terminal
 (`run_scenario.sh convert`, `build_windows.py`).

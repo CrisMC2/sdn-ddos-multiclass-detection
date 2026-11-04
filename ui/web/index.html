@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Campus-DDoS-SDN</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2316212c' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='6' cy='7' r='2.2'/%3E%3Ccircle cx='18' cy='7' r='2.2'/%3E%3Ccircle cx='12' cy='18' r='2.2'/%3E%3Cpath d='M8 7h8M7.2 8.8l3.6 7.4M16.8 8.8l-3.6 7.4'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/css/tokens.css">
+<link rel="stylesheet" href="/static/css/base.css">
+<link rel="stylesheet" href="/static/css/layout.css">
+<link rel="stylesheet" href="/static/css/components.css">
+<link rel="stylesheet" href="/static/css/entorno.css">
+<link rel="stylesheet" href="/static/css/simulacion.css">
+<link rel="stylesheet" href="/static/css/campus.css">
+<link rel="stylesheet" href="/static/css/charts.css">
+</head>
+<body>
+<div class="app">
+
+  <!-- ===================== Barra lateral ===================== -->
+  <aside class="rail">
+    <div class="brand">
+      <svg class="ic brand-mark" aria-hidden="true"><use href="/static/icons.svg#i-logo"/></svg>
+      <div>
+        <div class="brand-name">Campus-DDoS-SDN</div>
+        <div class="brand-sub">Banco de pruebas UNCP</div>
+      </div>
+    </div>
+
+    <nav class="nav" aria-label="Módulos">
+      <button class="nav-item" data-view="entorno" title="Entorno"><svg class="ic" aria-hidden="true"><use href="/static/icons.svg#i-shield"/></svg><span>Entorno</span></button>
+      <div class="nav-sep" role="presentation"></div>
+      <button class="nav-item" data-view="simulacion" title="Simulación"><svg class="ic" aria-hidden="true"><use href="/static/icons.svg#i-sim"/></svg><span>Simulación</span><span class="nav-live" id="nav-live" hidden>activa</span></button>
+    </nav>
+
+    <div class="rail-foot">
+      <ul class="rail-health" id="rail-health" aria-label="Estado del entorno"></ul>
+      <button class="theme-btn" id="theme-btn" type="button" aria-label="Cambiar entre tema claro y oscuro">
+        <svg class="ic" aria-hidden="true"><use href="/static/icons.svg#i-moon" id="theme-ic"/></svg><span id="theme-txt">Tema oscuro</span>
+      </button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="conn-lost" id="conn-lost" hidden role="alert">
+      <svg class="ic" aria-hidden="true"><use href="/static/icons.svg#i-alert"/></svg>
+      <span>Se perdió la conexión con la interfaz. Revisa que <code>python ui/app.py</code> siga corriendo.</span>
+    </div>
+
+    <!-- Franja de corrida: visible en todos los modulos mientras hay una corrida activa -->
+    <button class="runstrip" id="runstrip" hidden type="button">
+      <span class="pill" id="rs-pill"></span>
+      <span class="rs-name" id="rs-name"></span>
+      <span class="rs-time" id="rs-time"></span>
+      <span class="rs-go" id="rs-go">Ver simulación</span>
+    </button>
+
+    <main>
+
+      <!-- ===================== ENTORNO ===================== -->
+      <section class="view" id="view-entorno" aria-labelledby="h-entorno" hidden>
+        <header class="view-head">
+          <h1 id="h-entorno">Entorno</h1>
+          <p class="lede">Lo que necesita la interfaz para lanzar una simulación. Si algo falla, aquí se ve antes de que falle una demo.</p>
+        </header>
+
+        <div class="banner" id="env-banner" role="status"></div>
+        <ul class="checks" id="env-checks"></ul>
+
+        <div class="actions">
+          <button class="btn" id="btn-env-refresh" type="button"><svg class="ic" aria-hidden="true"><use href="/static/icons.svg#i-refresh"/></svg>Revisar de nuevo</button>
+          <button class="btn btn-danger" id="btn-clean" type="button" hidden><svg class="ic" aria-hidden="true"><use href="/static/icons.svg#i-trash"/></svg>Eliminar el contenedor en marcha</button>
+        </div>
+
+        <section class="panel verify" aria-labelledby="h-verify">
+          <div class="panel-head">
+            <div>
+              <h2 id="h-verify">Prueba de caminos de red</h2>
+              <p class="muted">Comprueba que un alumno, una PC infectada y el C2 alcanzan el portal. Dura unos 25 segundos y no guarda datos.</p>
+            </div>
+            <button class="btn btn-primary" id="btn-verify" type="button"><svg class="ic" aria-hidden="true"><use href="/static/icons.svg#i-shield"/></svg>Verificar red</button>
+          </div>
+          <ul class="checks compact" id="verify-list" hidden></ul>
+          <p class="verify-note" id="verify-note" hidden></p>
+        </section>
+      </section>
+
+      <!-- ===================== SIMULACION (lanzar + en vivo) ===================== -->
+      <section class="view" id="view-simulacion" aria-labelledby="h-sim" hidden>
+        <header class="view-head">
+          <h1 id="h-sim">Simulación</h1>
+          <p class="lede">Elige qué simular, lánzalo y míralo recorrer la red.</p>
+        </header>
+
+        <!-- 1. Configuracion: se pliega a una linea al lanzar -->
+        <section class="panel cfg" id="cfg" aria-labelledby="h-cfg">
+          <header class="cfg-head">
+            <div class="cfg-title">
+              <svg class="ic" aria-hidden="true"><use href="/static/icons.svg#i-sliders"/></svg>
+              <h2 id="h-cfg">Configuración</h2>
+            </div>
+            <ul class="cfg-sum" id="cfg-sum" hidden aria-label="Configuración de la simulación"></ul>
+            <button class="btn" id="btn-cfg-toggle" type="button" hidden>
+              <svg class="ic" aria-hidden="true"><use href="/static/icons.svg#i-sliders"/></svg><span id="btn-cfg-toggle-txt">Cambiar configuración</span>
+            </button>
+          </header>
+
+          <div class="cfg-body" id="cfg-body">
+            <div class="seg" role="group" aria-label="Tipo de simulación" id="mode-seg">
+              <button type="button" class="seg-btn on" id="mode-single" aria-pressed="true"><svg class="ic" aria-hidden="true"><use href="/static/icons.svg#i-bolt"/></svg>Un ataque</button>
+              <button type="button" class="seg-btn" id="mode-multi" aria-pressed="false"><svg class="ic" aria-hidden="true"><use href="/static/icons.svg#i-multi"/></svg>Varios a la vez</button>
+            </div>
+
+            <div class="cfg-grid">
+              <fieldset class="sc-list" id="sc-list"><legend class="sr-only">Escenario</legend></fieldset>
+
+              <div class="cfg-side">
+                <div class="empty" id="sc-empty">
+                  <svg class="ic" aria-hidden="true"><use href="/static/icons.svg#i-sim"/></svg>
+                  <p id="sc-empty-txt">Elige un escenario de la lista para ver qué hace y configurarlo.</p>
+                </div>
+
+                <div id="sc-panel" hidden>
+                  <section class="detail" aria-live="polite">
+                    <div class="sc-title">
+                      <svg class="ic ic-lg" aria-hidden="true"><use href="/static/icons.svg#i-generic" id="sd-icon"/></svg>
+                      <div>
+                        <h3 id="sd-name"></h3>
+                        <p class="muted" id="sd-group"></p>
+                      </div>
+                    </div>
+                    <p id="sd-desc"></p>
+                    <dl class="facts" id="sd-facts">
+                      <div><dt>Qué agota</dt><dd id="sd-agota"></dd></div>
+                      <div><dt>Cómo se ve</dt><dd id="sd-firma"></dd></div>
+                      <div><dt>Herramienta</dt><dd><code id="sd-tool"></code></dd></div>
+                    </dl>
+                    <ul class="chips" id="sd-mix" hidden aria-label="Ataques combinados"></ul>
+                  </section>
+
+                  <section class="form" aria-labelledby="h-conf">
+                    <h3 id="h-conf">Parámetros</h3>
+
+                    <div class="grid2">
+                      <label class="field">
+                        <span class="field-l">Duración</span>
+                        <span class="input-unit"><input type="number" id="f-duration" value="30" min="5" max="1800" inputmode="numeric"><span>s</span></span>
+                      </label>
+                      <label class="field" id="fld-onset">
+                        <span class="field-l">Inicio del ataque</span>
+                        <span class="input-unit"><input type="number" id="f-onset" value="10" min="0" max="1800" inputmode="numeric"><span>s</span></span>
+                      </label>
+                    </div>
+                    <p class="field-err" id="err-onset" role="alert" hidden></p>
+
+                    <div class="tl-wrap">
+                      <div class="tl" id="tl" role="img" aria-label="Línea de tiempo de la simulación"></div>
+                      <ul class="tl-legend" id="tl-legend"></ul>
+                    </div>
+
+                    <div id="int-list" class="int-list"></div>
+
+                    <div class="grid2">
+                      <label class="field">
+                        <span class="field-l">Alumnos por área</span>
+                        <input type="number" id="f-students" min="1" max="9" placeholder="4" inputmode="numeric">
+                      </label>
+                      <label class="field">
+                        <span class="field-l">PCs infectadas por área</span>
+                        <input type="number" id="f-bots" min="1" max="9" placeholder="2" inputmode="numeric">
+                      </label>
+                    </div>
+
+                    <details class="adv">
+                      <summary><svg class="ic" aria-hidden="true"><use href="/static/icons.svg#i-chevron"/></svg>Opciones adicionales</summary>
+                      <div class="grid2">
+                        <label class="field">
+                          <span class="field-l">Etiqueta de la corrida</span>
+                          <input type="text" id="f-tag" maxlength="24" placeholder="Automática, por ejemplo ui142530" autocomplete="off">
+                          <span class="field-h">Nombra los archivos de salida. Letras, números, guion y guion bajo.</span>
+                        </label>
+                        <label class="field">
+                          <span class="field-l">Semilla</span>
+                          <input type="number" id="f-seed" placeholder="Sin semilla" inputmode="numeric">
+                          <span class="field-h">Queda registrada en el meta.json.</span>
+                        </label>
+                      </div>
+                    </details>
+
+                    <div class="launch-bar">
+                      <p class="launch-note" id="launch-note"></p>
+                      <button class="btn btn-primary btn-lg" id="btn-launch" type="button"><svg class="ic fill" aria-hidden="true"><use href="/static/icons.svg#i-play"/></svg><span id="btn-launch-txt">Lanzar simulación</span></button>
+                    </div>
+                  </section>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. El campus: siempre visible. En reposo hasta que hay una simulacion -->
+        <section class="panel stage" id="stage" aria-labelledby="h-stage">
+          <header class="stage-head">
+            <div class="stage-id">
+              <h2 id="h-stage">Campus en reposo</h2>
+              <div class="stage-meta">
+                <span class="pill" id="lh-pill" hidden></span>
+                <span class="muted" id="lh-sub"></span>
+              </div>
+            </div>
+            <button class="btn btn-danger" id="btn-stop" type="button" hidden><svg class="ic fill" aria-hidden="true"><use href="/static/icons.svg#i-stop"/></svg>Detener</button>
+          </header>
+
+          <div class="stage-alert" id="stage-alert" hidden role="status"></div>
+          <div class="error-box" id="live-error" role="alert" hidden></div>
+
+          <div class="stage-wrap"><svg id="campus" role="img" aria-labelledby="h-stage"></svg></div>
+
+          <footer class="stage-foot">
+            <ul class="legend" aria-label="Leyenda del campus">
+              <li><svg class="lg-shape" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5" class="host"/></svg>Alumno</li>
+              <li><svg class="lg-shape" viewBox="0 0 14 14" aria-hidden="true"><rect x="2.5" y="2.5" width="9" height="9" transform="rotate(45 7 7)" class="bot"/></svg>PC infectada</li>
+              <li><svg class="lg-shape" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="3.2" class="pk-req"/></svg>Petición normal</li>
+              <li><svg class="lg-shape" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="3.2" class="pk-resp"/></svg>Respuesta del portal</li>
+              <li><svg class="lg-shape" viewBox="0 0 14 14" aria-hidden="true"><rect x="3.6" y="3.6" width="6.8" height="6.8" transform="rotate(45 7 7)" class="pk-atk"/></svg>Paquete de ataque</li>
+            </ul>
+            <ol class="stepper" id="stepper" aria-label="Avance de la simulación" hidden></ol>
+          </footer>
+        </section>
+
+        <!-- 3. Datos de la simulacion: aparecen al lanzar -->
+        <div id="sim-data" hidden>
+          <div class="tiles" id="tiles"></div>
+
+          <section class="panel charts" aria-labelledby="h-charts">
+            <div class="panel-head">
+              <h2 id="h-charts">Comportamiento del portal</h2>
+              <div class="seg" role="group" aria-label="Forma de ver los datos">
+                <button type="button" class="seg-btn on" id="seg-chart" aria-pressed="true"><svg class="ic" aria-hidden="true"><use href="/static/icons.svg#i-chart"/></svg>Gráficos</button>
+                <button type="button" class="seg-btn" id="seg-table" aria-pressed="false"><svg class="ic" aria-hidden="true"><use href="/static/icons.svg#i-table"/></svg>Tabla</button>
+              </div>
+            </div>
+
+            <div id="charts-view">
+              <figure class="chart-card">
+                <figcaption><b>Paquetes por segundo que recibe el portal</b></figcaption>
+                <div class="chart-host" id="ch-pps"></div>
+              </figure>
+              <figure class="chart-card">
+                <figcaption><b>Latencia de la sonda del alumno</b><span class="muted">milisegundos</span></figcaption>
+                <div class="chart-host" id="ch-lat"></div>
+              </figure>
+              <figure class="chart-card">
+                <figcaption><b>¿Responde el portal?</b><span class="muted">una sonda por segundo</span></figcaption>
+                <div class="strip-host" id="ch-ok"></div>
+                <ul class="legend inline" aria-label="Leyenda de respuestas">
+                  <li><svg class="ic good" aria-hidden="true"><use href="/static/icons.svg#i-check"/></svg>Respondió (HTTP 200)</li>
+                  <li><svg class="ic bad" aria-hidden="true"><use href="/static/icons.svg#i-x"/></svg>No respondió o dio error</li>
+                </ul>
+              </figure>
+            </div>
+
+            <div id="table-view" hidden>
+              <div class="table-scroll" tabindex="0" role="region" aria-label="Datos por segundo">
+                <table class="data" id="data-table"></table>
+              </div>
+              <p class="muted note">La muestra del segundo 1 se omite: el contador del portal arranca en ese instante. Es la misma regla que usa el dataset por ventana.</p>
+            </div>
+          </section>
+
+          <section class="panel summary" id="summary" aria-labelledby="h-sum" hidden>
+            <h2 id="h-sum">Resumen de la simulación</h2>
+            <div class="table-scroll"><table class="data" id="sum-table"></table></div>
+            <div class="files" id="files-block" hidden>
+              <h3>Archivos generados</h3>
+              <ul class="file-list" id="file-list"></ul>
+              <p class="muted note">Convertir estos archivos a CSV desde la interfaz llega en la siguiente fase.</p>
+            </div>
+          </section>
+
+          <details class="logs panel">
+            <summary><svg class="ic" aria-hidden="true"><use href="/static/icons.svg#i-chevron"/></svg>Registro del contenedor<span class="muted" id="log-last"></span></summary>
+            <pre id="logs" tabindex="0"></pre>
+          </details>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<script type="module" src="/static/js/main.js"></script>
+</body>
+</html>

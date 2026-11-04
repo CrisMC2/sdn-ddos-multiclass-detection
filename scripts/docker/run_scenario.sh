@@ -27,12 +27,27 @@ BENIGN_PORT="${BENIGN_PORT:-8080}"
 # Registro unico de escenarios (scripts/mininet/scenarios.txt). roles.py lo
 # lee igual adentro del contenedor; asi un ataque nuevo se agrega en un solo
 # lugar en vez de en cada script.
-mapfile -t SCENARIOS < <(grep -vE '^[[:space:]]*#|^[[:space:]]*$' "$ROOT/scripts/mininet/scenarios.txt")
+#   SCENARIOS = todos los validos (se pueden pedir por nombre)
+#   RUN_SET   = los que corren "all" y "repeat": solo el conjunto base, para
+#               que una campana de datos siga siendo baseline + 4 ataques.
+#               SCENARIO_SET=extended suma los marcados como 'extra'.
+SCENARIOS=(); CORE_SCENARIOS=()
+while read -r _name _flag _rest; do
+  SCENARIOS+=("$_name")
+  [ "$_flag" = "extra" ] || CORE_SCENARIOS+=("$_name")
+done < <(grep -vE '^[[:space:]]*#|^[[:space:]]*$' "$ROOT/scripts/mininet/scenarios.txt" | tr -d '\r')
+if [ "${SCENARIO_SET:-core}" = "extended" ]; then
+  RUN_SET=("${SCENARIOS[@]}")
+else
+  RUN_SET=("${CORE_SCENARIOS[@]}")
+fi
 
 usage() {
   local list
   list="$(IFS='|'; echo "${SCENARIOS[*]}")"
   echo "Uso: bash scripts/docker/run_scenario.sh <verify|$list|all|repeat|convert> [segundos]" >&2
+  echo "     all / repeat corren: ${CORE_SCENARIOS[*]}" >&2
+  echo "     SCENARIO_SET=extended suma tambien los extra (los de scenarios.txt marcados 'extra')" >&2
   echo "     repeat <N> [segundos]: N corridas con semilla e intensidades distintas (para media +/- desviacion)" >&2
   exit 1
 }
@@ -119,7 +134,7 @@ run_one() {
     -e RUN_TAG -e RUN_SEED \
     -e SYN_PPS -e ICMP_PPS -e HTTP_FLOOD_WORKERS -e HTTP_FLOOD_PAUSE \
     -e SLOWLORIS_CONNS -e BROWSE_PAUSE_MIN -e BROWSE_PAUSE_MAX \
-    -e UDP_PPS -e ACK_PPS -e SLOWPOST_CONNS \
+    -e UDP_PPS -e ACK_PPS -e SLOWPOST_CONNS -e MULTIVECTOR_ATTACKS \
     -e STUDENTS_PER_AREA -e BOTS_PER_AREA \
     -e SDN_POLL_INTERVAL -e ONSET_S -e MACHINE_TAG \
     -e OVS_DATAPATH \
@@ -188,7 +203,7 @@ case "$SCENARIO" in
     run_convert
     ;;
   all)
-    for s in "${SCENARIOS[@]}"; do
+    for s in "${RUN_SET[@]}"; do
       run_one "$s" "$DURATION"
     done
     ;;
@@ -211,7 +226,7 @@ case "$SCENARIO" in
       export HTTP_FLOOD_WORKERS="$(awk -v s="$((seed+2))" 'BEGIN{srand(s); print 3+int(rand()*4)}')"
       export SLOWLORIS_CONNS="$(awk -v s="$((seed+3))"    'BEGIN{srand(s); print 15+int(rand()*16)}')"
       echo "########## corrida $tag (seed=$seed): SYN_PPS=$SYN_PPS ICMP_PPS=$ICMP_PPS HTTP_FLOOD_WORKERS=$HTTP_FLOOD_WORKERS SLOWLORIS_CONNS=$SLOWLORIS_CONNS ##########"
-      for s in "${SCENARIOS[@]}"; do
+      for s in "${RUN_SET[@]}"; do
         run_one "$s" "$dur"
       done
     done

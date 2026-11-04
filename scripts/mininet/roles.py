@@ -122,6 +122,7 @@ def run_config():
         'slowpost_conns': SLOWPOST_CONNS,
         'students_per_area': STUDENTS_PER_AREA,
         'bots_per_area': BOTS_PER_AREA,
+        'multivector_attacks': list(MULTIVECTOR_ATTACKS),
     }
 
 
@@ -134,17 +135,49 @@ def _load_scenarios():
     """Lee scripts/mininet/scenarios.txt, el registro unico de escenarios.
     Vive junto a este archivo a proposito: esa carpeta se copia entera a
     /ataque/mininet en la imagen Docker, asi que la misma ruta relativa
-    funciona adentro y afuera del contenedor sin distinguir el entorno."""
+    funciona adentro y afuera del contenedor sin distinguir el entorno.
+
+    Devuelve (todos, base): 'base' son los que no llevan la marca 'extra'."""
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'scenarios.txt')
+    default = ('baseline', 'synflood', 'httpflood', 'slowloris', 'icmpflood')
     try:
         with open(path) as fh:
             lines = [ln.strip() for ln in fh]
     except OSError:
-        return ('baseline', 'synflood', 'httpflood', 'slowloris', 'icmpflood')
-    return tuple(ln for ln in lines if ln and not ln.startswith('#'))
+        return default, default
+    todos, base = [], []
+    for ln in lines:
+        if not ln or ln.startswith('#'):
+            continue
+        parts = ln.split()
+        todos.append(parts[0])
+        if 'extra' not in parts[1:]:
+            base.append(parts[0])
+    return tuple(todos), tuple(base)
 
 
-SCENARIOS = _load_scenarios()
+SCENARIOS, CORE_SCENARIOS = _load_scenarios()
+
+# Ataques individuales: lo que se puede combinar en 'multivector'.
+ATTACKS = tuple(s for s in SCENARIOS if s not in ('baseline', 'multivector'))
+
+
+def _load_multivector():
+    """Ataques que se reparten entre las infectadas en el escenario
+    'multivector' (MULTIVECTOR_ATTACKS=synflood,icmpflood,...). Se descartan
+    nombres invalidos y repetidos; hacen falta al menos dos, si no se usa el
+    valor por defecto."""
+    raw = os.environ.get('MULTIVECTOR_ATTACKS', '')
+    found = []
+    for name in (x.strip() for x in raw.split(',')):
+        if name in ATTACKS and name not in found:
+            found.append(name)
+    if len(found) < 2:
+        found = [a for a in ('synflood', 'icmpflood', 'slowloris') if a in ATTACKS]
+    return tuple(found)
+
+
+MULTIVECTOR_ATTACKS = _load_multivector()
 
 # Mininet solo calcula el dpid si el switch se llama s1, s2, ...
 CORE_SWITCH = 's1'

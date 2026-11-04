@@ -223,15 +223,18 @@ def label_for(row, meta, fallback):
         return 'BENIGN'
     if src not in bots or scenario == 'baseline':
         return 'BENIGN'
+    # En 'multivector' cada infectada lanza un ataque distinto: el flujo lleva
+    # el de SU IP (bot_attacks en el meta.json), no el nombre del escenario.
+    label = (meta.get('bot_attacks') or {}).get(src, scenario)
     # El bot ataca solo desde attack_start_ts; antes de eso, navega como
     # alumno (ver onset_for en roles.py). Sin ese dato (meta.json viejo),
     # se conserva el criterio anterior: todo el flujo del bot es ataque.
     attack_start = meta.get('attack_start_ts')
     if attack_start is None:
-        return scenario
+        return label
     ts = parse_row_ts(row)
     if ts is None or ts >= attack_start:
-        return scenario
+        return label
     return 'BENIGN'
 
 
