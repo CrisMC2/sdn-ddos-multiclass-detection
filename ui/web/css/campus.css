@@ -1,0 +1,85 @@
+/* El campus: lo unico "bold" de la interfaz. En reposo es un plano discreto;
+   cuando hay una simulacion, los paquetes recorren los enlaces, y cuando hay
+   un ataque todo el escenario cambia de estado (borde, aviso, portal, linea
+   superior de la pagina). */
+
+.stage { position: relative; overflow: hidden; transition: border-color .3s, box-shadow .3s; }
+/* Plano de puntos: lo que da el aire de "mesa de instrumentos". */
+.stage::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .75;
+  background-image: radial-gradient(var(--grid) 1px, transparent 1.5px);
+  background-size: 22px 22px;
+}
+.stage > * { position: relative; z-index: 1; }
+
+.stage.is-attack {
+  border-color: var(--critical);
+  box-shadow: 0 0 0 1px var(--critical), 0 0 30px color-mix(in srgb, var(--critical) 26%, transparent);
+}
+.stage.is-attack::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  background: radial-gradient(110% 80% at 50% 0%, color-mix(in srgb, var(--critical) 13%, transparent), transparent 65%);
+  animation: alarma 2.6s ease-in-out infinite;
+}
+@keyframes alarma { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+
+/* Aviso dentro del escenario */
+.stage-alert { display: flex; align-items: center; gap: 12px 14px; flex-wrap: wrap; padding: 10px 14px; margin-bottom: 12px; border: 1px solid var(--critical); border-radius: var(--r-md); background: color-mix(in srgb, var(--critical) 10%, var(--surface)); color: var(--critical-text); }
+.stage-alert .sa-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--critical); animation: pulso 1.1s infinite; flex: none; }
+.stage-alert b { font: 600 15px/1.3 var(--font-display); color: var(--critical-text); }
+.stage-alert .sa-sub { color: var(--ink-2); font-size: 13px; }
+.stage-alert .chips { margin: 0; }
+.stage-alert .chips li { border-color: color-mix(in srgb, var(--critical) 45%, var(--line-strong)); background: var(--surface); }
+.stage-alert.down { margin-top: -4px; border-style: dashed; }
+.stage-alert.calm { border-color: color-mix(in srgb, var(--good) 55%, var(--line)); background: color-mix(in srgb, var(--good) 9%, var(--surface)); color: var(--good-text); }
+.stage-alert.calm b { color: var(--good-text); }
+.stage-alert.calm .sa-dot { background: var(--good); animation: none; }
+
+.stage-wrap { overflow-x: auto; }
+#campus { width: 100%; min-width: 600px; height: auto; display: block; }
+
+/* ----- Zona, enlaces y nodos ----- */
+#campus .zone-rect { fill: none; stroke: var(--line-strong); stroke-width: 1.5; stroke-dasharray: 3 6; }
+#campus .zone-label { fill: var(--ink-3); font: 12.5px var(--font-ui); }
+#campus .lk { stroke: var(--line-strong); stroke-width: 2; fill: none; transition: stroke .3s; }
+#campus .lk.soft { stroke-width: 1.5; }
+#campus .node rect { fill: var(--surface-2); stroke: var(--line-strong); stroke-width: 1.5; transition: stroke .25s, fill .25s; }
+#campus .node .ic { color: var(--ink-2); }
+#campus .node text { fill: var(--ink); font: 600 14.5px var(--font-ui); }
+#campus .node text.sub { fill: var(--ink-3); font: 12.5px var(--font-ui); font-weight: 400; }
+#campus .cnt { fill: var(--ink-3); font: 12.5px var(--font-ui); }
+#campus .host, .lg-shape .host { fill: var(--ink-3); }
+#campus .bot, .lg-shape .bot { fill: var(--surface); stroke: var(--ink-2); stroke-width: 1.8; transition: fill .25s, stroke .25s; }
+
+/* ----- Portal: estado, carga y saturacion ----- */
+#campus .portal.ok rect { stroke: var(--good); }
+#campus .portal.fail rect { stroke: var(--critical); fill: color-mix(in srgb, var(--critical) 11%, var(--surface-2)); }
+#campus .portal.ok .st { color: var(--good); }
+#campus .portal.fail .st { color: var(--critical); }
+#campus .halo { fill: none; stroke: var(--critical); stroke-width: 2; opacity: 0; transform-box: fill-box; transform-origin: center; }
+#campus .meter-bg { fill: var(--line); }
+#campus .meter-fill { fill: var(--good); transition: width .35s, fill .35s; }
+#campus .meter-fill.warn { fill: var(--warning); }
+#campus .meter-fill.crit { fill: var(--critical); }
+#campus .meter-t { fill: var(--ink-3); font: 12px var(--font-ui); }
+
+/* ----- Estado de ataque ----- */
+#campus.is-attack .lk.carries { stroke: color-mix(in srgb, var(--critical) 62%, var(--line-strong)); stroke-width: 2.5; }
+#campus.is-attack .lab rect, #campus.is-attack .c2 rect { stroke: var(--critical); }
+#campus.is-attack .bot { fill: var(--critical); stroke: var(--critical); }
+#campus.is-attack .halo { animation: halo 1.5s ease-out infinite; }
+#campus.is-attack .portal.fail { animation: sacudida .55s ease-in-out infinite; }
+@keyframes halo { 0% { transform: scale(1); opacity: calc(.25 + var(--load, 0) * .55); } 100% { transform: scale(1.22, 1.5); opacity: 0; } }
+@keyframes sacudida { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-1.5px); } 75% { transform: translateX(1.5px); } }
+
+/* ----- Paquetes ----- */
+.pk-req { fill: var(--s1); }
+.pk-resp { fill: var(--surface); stroke: var(--ink-3); stroke-width: 1.7; }
+.pk-resp.ok { stroke: var(--good); }
+.pk-resp.err { stroke: var(--critical); }
+.pk-atk { fill: var(--critical); }
+.pk-app { fill: var(--critical); }
+.pk-slow { fill: var(--surface); stroke: var(--critical); stroke-width: 2; }
+#campus .atk-layer { filter: drop-shadow(0 0 3px color-mix(in srgb, var(--critical) 65%, transparent)); }
+
+.lg-shape { width: 14px; height: 14px; flex: none; }

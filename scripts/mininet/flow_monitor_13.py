@@ -133,14 +133,26 @@ class FlowMonitor13(app_manager.RyuApp):
             hub.sleep(self.poll_interval)
 
     def _dump_datapath_flows(self):
-        """Texto crudo de 'ovs-dpctl dump-flows' (todos los datapaths)."""
-        try:
-            return subprocess.check_output(
-                ['ovs-dpctl', 'dump-flows'],
-                stderr=subprocess.DEVNULL, text=True, timeout=5,
-            )
-        except (OSError, subprocess.SubprocessError):
-            return ''
+        """Texto crudo de los flujos del datapath. 'ovs-dpctl' solo ve el
+        datapath de kernel; si OVS cayo a userspace (netdev, p.ej. Docker
+        Desktop en macOS, sin modulo openvswitch) no devuelve nada, y se pide
+        lo mismo al vswitchd con 'ovs-appctl dpctl/dump-flows', que muestra
+        el datapath netdev con el mismo formato."""
+        for cmd in (['ovs-dpctl', 'dump-flows'],
+                    ['ovs-appctl', 'dpctl/dump-flows', 'netdev@ovs-netdev']):
+            try:
+                out = subprocess.check_output(
+                    cmd, stderr=subprocess.DEVNULL, text=True, timeout=5,
+                )
+            except Exception:  # noqa: BLE001
+                # Dentro de Ryu, subprocess es el de eventlet y su
+                # CalledProcessError no hereda de subprocess.SubprocessError:
+                # capturar solo ese tipo dejaba escapar el fallo de ovs-dpctl
+                # (sin datapath de kernel) y nunca se probaba ovs-appctl.
+                continue
+            if out.strip():
+                return out
+        return ''
 
     def _poll_datapath(self):
         """Suma los deltas de cada flujo del datapath en un acumulado por

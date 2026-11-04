@@ -62,6 +62,33 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def do_POST(self):
+        # Solo /login acepta POST, como un formulario real. No hace nada con
+        # el cuerpo: lo que importa es que leerlo mantiene la conexion y el
+        # cupo ocupados, que es lo que explota un ataque tipo RUDY (POST con
+        # el cuerpo enviado muy despacio, Content-Length grande).
+        if self.path.split('?', 1)[0] != '/login':
+            self.send_response(404)
+            self.send_header('Content-Length', '0')
+            self.send_header('Connection', 'close')
+            self.end_headers()
+            return
+        length = int(self.headers.get('Content-Length') or 0)
+        remaining = length
+        while remaining > 0:
+            chunk = self.rfile.read(min(65536, remaining))
+            if not chunk:
+                break
+            remaining -= len(chunk)
+        time.sleep(PAGE_DELAY_S)
+        body = b'<html><body><h1>Intranet - ingreso</h1></body></html>'
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/html; charset=utf-8')
+        self.send_header('Content-Length', str(len(body)))
+        self.send_header('Connection', 'close')
+        self.end_headers()
+        self.wfile.write(body)
+
     def log_message(self, fmt, *args):
         return
 

@@ -24,9 +24,32 @@ IMAGE="${IMAGE:-ataque-sdn}"
 NAME="ataque-sdn-run"
 BENIGN_PORT="${BENIGN_PORT:-8080}"
 
+# Registro unico de escenarios (scripts/mininet/scenarios.txt). roles.py lo
+# lee igual adentro del contenedor; asi un ataque nuevo se agrega en un solo
+# lugar en vez de en cada script.
+#   SCENARIOS = todos los validos (se pueden pedir por nombre)
+#   RUN_SET   = los que corren "all" y "repeat": solo el conjunto base, para
+#               que una campana de datos siga siendo baseline + 4 ataques.
+#               SCENARIO_SET=extended suma los marcados como 'extra'.
+SCENARIOS=(); CORE_SCENARIOS=()
+while read -r _name _flag _rest; do
+  SCENARIOS+=("$_name")
+  [ "$_flag" = "extra" ] || CORE_SCENARIOS+=("$_name")
+done < <(grep -vE '^[[:space:]]*#|^[[:space:]]*$' "$ROOT/scripts/mininet/scenarios.txt" | tr -d '\r')
+if [ "${SCENARIO_SET:-core}" = "extended" ]; then
+  RUN_SET=("${SCENARIOS[@]}")
+else
+  RUN_SET=("${CORE_SCENARIOS[@]}")
+fi
+
 usage() {
-  echo "Uso: bash scripts/docker/run_scenario.sh <verify|baseline|synflood|httpflood|slowloris|icmpflood|all|repeat|convert> [segundos]" >&2
+  local list
+  list="$(IFS='|'; echo "${SCENARIOS[*]}")"
+  echo "Uso: bash scripts/docker/run_scenario.sh <verify|$list|all|repeat|convert> [segundos]" >&2
+  echo "     all / repeat corren: ${CORE_SCENARIOS[*]}" >&2
+  echo "     SCENARIO_SET=extended suma tambien los extra (los de scenarios.txt marcados 'extra')" >&2
   echo "     repeat <N> [segundos]: N corridas con semilla e intensidades distintas (para media +/- desviacion)" >&2
+  echo "     dificil <N> [segundos]: N rondas de ataques dificiles (perfiles: \${PERFILES:-bajo sigiloso pulsos rampa})" >&2
   exit 1
 }
 
@@ -112,8 +135,12 @@ run_one() {
     -e RUN_TAG -e RUN_SEED \
     -e SYN_PPS -e ICMP_PPS -e HTTP_FLOOD_WORKERS -e HTTP_FLOOD_PAUSE \
     -e SLOWLORIS_CONNS -e BROWSE_PAUSE_MIN -e BROWSE_PAUSE_MAX \
-    -e SDN_POLL_INTERVAL \
-    -e OVS_DATAPATH \
+    -e UDP_PPS -e ACK_PPS -e SLOWPOST_CONNS -e MULTIVECTOR_ATTACKS \
+    -e STUDENTS_PER_AREA -e BOTS_PER_AREA \
+    -e SDN_POLL_INTERVAL -e ONSET_S -e MACHINE_TAG \
+    -e OVS_DATAPATH -e SKIP_PCAP \
+    -e ATTACK_PROFILE -e BENIGN_LOAD -e ATTACK_MODE -e PULSE_ON_S -e PULSE_OFF_S \
+    -e RAMP_S -e HTTP_FLOOD_MIMIC \
     -p "127.0.0.1:${BENIGN_PORT}:${BENIGN_PORT}" \
     -v "$ROOT/data:/ataque/data" \
     -v "$ROOT/scripts/mininet:/ataque/mininet:ro" \
@@ -179,7 +206,7 @@ case "$SCENARIO" in
     run_convert
     ;;
   all)
-    for s in baseline synflood httpflood slowloris icmpflood; do
+    for s in "${RUN_SET[@]}"; do
       run_one "$s" "$DURATION"
     done
     ;;
@@ -202,17 +229,86 @@ case "$SCENARIO" in
       export HTTP_FLOOD_WORKERS="$(awk -v s="$((seed+2))" 'BEGIN{srand(s); print 3+int(rand()*4)}')"
       export SLOWLORIS_CONNS="$(awk -v s="$((seed+3))"    'BEGIN{srand(s); print 15+int(rand()*16)}')"
       echo "########## corrida $tag (seed=$seed): SYN_PPS=$SYN_PPS ICMP_PPS=$ICMP_PPS HTTP_FLOOD_WORKERS=$HTTP_FLOOD_WORKERS SLOWLORIS_CONNS=$SLOWLORIS_CONNS ##########"
-      for s in baseline synflood httpflood slowloris icmpflood; do
+      for s in "${RUN_SET[@]}"; do
         run_one "$s" "$dur"
       done
     done
     echo "Listo: $runs corridas. Ahora pasa los pcap a CSV:"
     echo "  bash scripts/docker/run_scenario.sh convert"
     ;;
-  verify|baseline|synflood|httpflood|slowloris|icmpflood)
+  dificil)
+    # dificil <N> [segundos]: N rondas por perfil de ataque dificil (ver
+    # PERFILES en scripts/mininet/roles.py). Cada ronda corre los 5 escenarios
+    # con carga de alumnos variable (tambien baseline, para medir falsos
+    # positivos con trafico normal cargado). Sin pcap por defecto: el
+    # dataset por ventana no lo necesita (SKIP_PCAP=0 para guardarlo).
+    # Archivos: <escenario>__<perfil><NN>, p.ej. synflood__pulsos01.
+    rounds="${2:-2}"
+    dur="${3:-120}"
+    perfiles="${PERFILES:-bajo sigiloso pulsos rampa}"
+    seed_base="${RUN_SEED:-100}"
+    export BENIGN_LOAD="${BENIGN_LOAD:-variable}"
+    export SKIP_PCAP="${SKIP_PCAP:-1}"
+    # Que las intensidades salgan del perfil, no de un export viejo del shell.
+    unset SYN_PPS ICMP_PPS UDP_PPS ACK_PPS HTTP_FLOOD_WORKERS HTTP_FLOOD_PAUSE \
+          SLOWLORIS_CONNS SLOWPOST_CONNS STUDENTS_PER_AREA BOTS_PER_AREA \
+          BROWSE_PAUSE_MIN BROWSE_PAUSE_MAX ATTACK_MODE PULSE_ON_S PULSE_OFF_S \
+          RAMP_S HTTP_FLOOD_MIMIC
+    # ESCENARIOS="udpflood ackflood slowpost multivector" corre otros
+    # escenarios (p.ej. los ataques que el modelo nunca vio al entrenar).
+    if [ -n "${ESCENARIOS:-}" ]; then
+      read -r -a escenarios <<< "$ESCENARIOS"
+    else
+      escenarios=("${RUN_SET[@]}")
+    fi
+    n=0
+    fallidas=0
+    for i in $(seq 1 "$rounds"); do
+      for perfil in $perfiles; do
+        n=$((n + 1))
+        export ATTACK_PROFILE="$perfil"
+        export RUN_TAG="$(printf '%s%02d' "$perfil" "$i")"
+        export RUN_SEED=$((seed_base + n))
+        echo "########## $RUN_TAG (perfil=$perfil, seed=$RUN_SEED, carga=$BENIGN_LOAD) ##########"
+        for s in "${escenarios[@]}"; do
+          # Reanudable: una corrida ya terminada (tiene su meta con el
+          # ataque registrado, o es baseline) no se repite. REHACER=1 fuerza.
+          meta="$ROOT/data/raw/${s}__${RUN_TAG}.meta.json"
+          metrics="$ROOT/data/metrics/${s}__${RUN_TAG}_interno.csv"
+          if [ "${REHACER:-0}" != 1 ] && [ -s "$metrics" ] && [ -s "$meta" ] \
+             && { [ "$s" = baseline ] || ! grep -q '"attack_start_elapsed": null' "$meta"; } \
+             && [ "$(wc -l < "$metrics")" -ge $((dur * 3 / 4)) ]; then
+            echo "--- ${s}__${RUN_TAG} ya estaba hecha, se salta"
+            continue
+          fi
+          # Una corrida que falla no tumba la campana: se borran sus restos
+          # (para no dejar una corrida a medias en el dataset) y se sigue.
+          if ! ( run_one "$s" "$dur" ); then
+            echo "!!! FALLO ${s}__${RUN_TAG}: se borran sus archivos y se sigue" >&2
+            rm -f "$ROOT/data/metrics/${s}__${RUN_TAG}_"* "$ROOT/data/raw/${s}__${RUN_TAG}."*
+            fallidas=$((fallidas + 1))
+          fi
+        done
+      done
+    done
+    if [ "$fallidas" -gt 0 ]; then
+      echo "Hubo $fallidas corrida(s) fallida(s). Vuelve a lanzar el MISMO comando:"
+      echo "salta las que ya estan y repite solo esas."
+    fi
+    echo "Listo. Sigue los pasos 3 y 4 de docs/fases_overfitting.md"
+    ;;
+  verify)
     run_one "$SCENARIO" "$DURATION"
     ;;
   *)
-    usage
+    is_scenario=0
+    for s in "${SCENARIOS[@]}"; do
+      [ "$SCENARIO" = "$s" ] && is_scenario=1 && break
+    done
+    if [ "$is_scenario" = 1 ]; then
+      run_one "$SCENARIO" "$DURATION"
+    else
+      usage
+    fi
     ;;
 esac

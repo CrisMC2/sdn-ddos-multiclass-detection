@@ -1,0 +1,134 @@
+/* Modulo Simulacion: configuracion, campus, tarjetas, resumen y registro.
+   El campus (lo unico "bold") vive en campus.css. */
+
+/* ----- Configuracion ----- */
+.cfg-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.cfg-title { display: flex; align-items: center; gap: 10px; }
+.cfg-title .ic { color: var(--ink-2); }
+.cfg-sum { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; flex: 1; min-width: 0; }
+.cfg-sum li { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--surface-2); font-size: 13px; color: var(--ink-2); }
+.cfg-sum li b { color: var(--ink); font-weight: 600; }
+.cfg-sum .ic { width: 15px; height: 15px; }
+.cfg-head .btn { margin-left: auto; }
+.cfg-body { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
+.cfg.collapsed .cfg-body { display: none; }
+.cfg-body > .seg { margin-bottom: 18px; }
+
+.cfg-grid { display: grid; grid-template-columns: minmax(240px, 300px) minmax(0, 1fr); gap: 28px; align-items: start; }
+.sc-list { border: 0; margin: 0; padding: 0; min-width: 0; }
+.sc-group { margin-bottom: 16px; }
+.sc-group h4 { font: 600 13px/1.2 var(--font-ui); color: var(--ink-3); margin: 0 0 6px 2px; }
+.sc-item { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; position: relative; }
+.sc-item + .sc-item { margin-top: -1px; }
+.sc-item:first-of-type { border-radius: var(--r-md) var(--r-md) 0 0; }
+.sc-item:last-of-type { border-radius: 0 0 var(--r-md) var(--r-md); }
+.sc-item:only-of-type { border-radius: var(--r-md); }
+.sc-item:hover { background: var(--surface-2); }
+.sc-item input { position: absolute; opacity: 0; pointer-events: none; }
+.sc-item:has(input:checked) { background: var(--surface-2); border-color: var(--ink-3); z-index: 1; }
+.sc-item:has(input[type="radio"]:checked)::before { content: ""; position: absolute; left: 0; top: -1px; bottom: -1px; width: 3px; background: var(--ink); }
+.sc-item:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 1px; z-index: 2; }
+.sc-item > .ic { color: var(--ink-2); width: 20px; height: 20px; }
+.sc-name { font-weight: 600; }
+.sc-tool { display: block; font: 12px/1.3 var(--font-mono); color: var(--ink-3); margin-top: 1px; }
+.sc-body { flex: 1; min-width: 0; }
+.sc-box { width: 18px; height: 18px; border: 1.5px solid var(--line-strong); border-radius: 4px; flex: none; position: relative; background: var(--surface); }
+.sc-item:has(input:checked) .sc-box { background: var(--ink); border-color: var(--ink); }
+.sc-item:has(input:checked) .sc-box::after { content: ""; position: absolute; left: 5px; top: 1.5px; width: 4px; height: 9px; border: solid var(--on-ink); border-width: 0 2px 2px 0; transform: rotate(45deg); }
+
+.detail { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 16px 18px; }
+.sc-title { display: flex; gap: 14px; align-items: center; margin-bottom: 10px; }
+.sc-title .ic-lg { color: var(--ink); }
+.sc-title h3 { font: 600 20px/1.2 var(--font-display); margin: 0; }
+.facts { margin: 14px 0 0; display: grid; gap: 10px; }
+.facts div { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.facts dt { color: var(--ink-3); }
+.facts dd { margin: 0; }
+
+.form { margin-top: 18px; }
+.form h3 { margin: 0 0 12px; }
+.int-list { display: grid; gap: 12px; margin-bottom: 14px; }
+.int-list .field { margin-bottom: 0; }
+
+/* Linea de tiempo prevista de la simulacion */
+.tl-wrap { margin: 2px 0 18px; }
+.tl { display: flex; gap: 2px; height: 8px; }
+.tl i { display: block; height: 100%; min-width: 4px; }
+.tl i:first-child { border-radius: 999px 0 0 999px; }
+.tl i:last-child { border-radius: 0 999px 999px 0; }
+.tl i:only-child { border-radius: 999px; }
+.t-nav { background: var(--line-strong); }
+.t-atk { background: var(--critical); }
+.tl-legend { list-style: none; margin: 8px 0 0; padding: 0; display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); }
+.tl-legend li { display: flex; align-items: center; gap: 7px; }
+.tl-legend i { width: 14px; height: 4px; border-radius: 2px; display: inline-block; }
+
+.launch-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 16px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.launch-note { color: var(--ink-2); font-size: 13px; max-width: 46ch; }
+.launch-note.bad { color: var(--critical-text); }
+
+/* ----- Escenario (cabecera, aviso y avance) ----- */
+.stage-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; position: relative; z-index: 1; }
+.stage-id h2 { font: 600 22px/1.2 var(--font-display); }
+.stage-meta { display: flex; gap: 12px; align-items: center; margin-top: 8px; flex-wrap: wrap; min-height: 24px; }
+.stage-foot { display: flex; flex-direction: column; gap: 14px; margin-top: 12px; position: relative; z-index: 1; }
+
+.stepper { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; }
+.stepper li { display: flex; align-items: center; gap: 8px; color: var(--ink-3); font-size: 13.5px; padding-right: 12px; }
+.stepper li:not(:last-child)::after { content: ""; width: 28px; height: 1px; background: var(--line-strong); margin-left: 4px; }
+.stepper .ic { width: 17px; height: 17px; }
+.stepper li.done { color: var(--ink-2); }
+.stepper li.done .ic { color: var(--good); }
+.stepper li.now { color: var(--ink); font-weight: 600; }
+.stepper li.now.atk { color: var(--critical-text); }
+.stepper li.stop { color: var(--critical-text); font-weight: 600; }
+
+.legend { list-style: none; margin: 0; padding: 0; display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); }
+.legend li { display: flex; align-items: center; gap: 7px; }
+
+/* ----- Tarjetas de metricas ----- */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px 16px; min-width: 0; }
+.tile-l { color: var(--ink-2); font-size: 13px; }
+.tile-v { font: 600 30px/1.15 var(--font-display); margin-top: 4px; }
+.tile-v small { font: 400 14px var(--font-ui); color: var(--ink-3); margin-left: 4px; }
+.tile-d { margin-top: 6px; font-size: 12.5px; color: var(--ink-3); display: flex; align-items: center; gap: 5px; min-height: 18px; }
+.tile-d .ic { width: 14px; height: 14px; }
+.tile-d.bad { color: var(--critical-text); }
+.tile-d.good { color: var(--good-text); }
+@media (min-width: 961px) {
+  .tiles { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .tile-v { font-size: 27px; }
+}
+
+/* ----- Resumen, archivos y registro ----- */
+.summary .table-scroll { max-height: none; }
+.files { margin-top: 6px; }
+.file-list { list-style: none; margin: 0; padding: 0; }
+.file-list li { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.file-list li:last-child { border-bottom: 0; }
+.file-list .ic { color: var(--ink-3); }
+.file-list .fn { font-family: var(--font-mono); font-size: 12.5px; }
+.file-list .fd { color: var(--ink-3); font-size: 12.5px; }
+.file-list .fs { margin-left: auto; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+.logs pre { margin: 10px 0 0; max-height: 280px; overflow: auto; padding: 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-md); color: var(--ink-2); white-space: pre-wrap; word-break: break-word; }
+.logs summary .muted { margin: 0 0 0 auto; font: 12px var(--font-mono); max-width: 52%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 960px) {
+  .cfg-grid { grid-template-columns: minmax(0, 1fr); }
+  .facts div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+}
+
+/* ----- Dataset de entrenamiento (dentro del resumen) ----- */
+.datasets { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+.datasets h3 { margin: 0 0 6px; }
+.ds-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 14px 0 10px; }
+.ds-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+.ds-card { border: 1px solid var(--line); border-radius: var(--r-md); padding: 12px 14px; background: var(--surface-2); min-width: 0; }
+.ds-card b { font: 600 22px/1.2 var(--font-display); }
+.ds-card .muted { display: block; margin: 2px 0 8px; }
+.ds-card .chips { margin: 0; }
+.ds-card code { display: inline-block; margin-top: 8px; word-break: break-all; }
+@media (max-width: 960px) { .ds-grid { grid-template-columns: minmax(0, 1fr); } }
+.ds-card .chips b { font: 600 13px/1.3 var(--font-ui); }

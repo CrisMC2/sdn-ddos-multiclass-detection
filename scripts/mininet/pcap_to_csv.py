@@ -195,15 +195,46 @@ def fallback_label(pcap_path, raw):
     return os.path.splitext(os.path.basename(pcap_path))[0]
 
 
-def label_for(src, meta, fallback):
+def parse_row_ts(row):
+    """Epoch del primer paquete del flujo. ICMP guarda epoch float; el CSV
+    de CICFlowMeter trae un string 'YYYY-MM-DD HH:MM:SS' (hora local del
+    contenedor, la misma que usa capture_campus.py para attack_start_ts)."""
+    raw = row.get('timestamp')
+    if raw in (None, ''):
+        return None
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        pass
+    try:
+        from datetime import datetime
+        return datetime.strptime(raw, '%Y-%m-%d %H:%M:%S').timestamp()
+    except ValueError:
+        return None
+
+
+def label_for(row, meta, fallback):
+    src = src_of(row)
     if not meta:
         return fallback
     bots = set(meta.get('bots') or [])
     scenario = meta.get('scenario') or fallback
     if src and src == meta.get('benign_client'):
         return 'BENIGN'
-    if src in bots and scenario != 'baseline':
-        return scenario
+    if src not in bots or scenario == 'baseline':
+        return 'BENIGN'
+    # En 'multivector' cada infectada lanza un ataque distinto: el flujo lleva
+    # el de SU IP (bot_attacks en el meta.json), no el nombre del escenario.
+    label = (meta.get('bot_attacks') or {}).get(src, scenario)
+    # El bot ataca solo desde attack_start_ts; antes de eso, navega como
+    # alumno (ver onset_for en roles.py). Sin ese dato (meta.json viejo),
+    # se conserva el criterio anterior: todo el flujo del bot es ataque.
+    attack_start = meta.get('attack_start_ts')
+    if attack_start is None:
+        return label
+    ts = parse_row_ts(row)
+    if ts is None or ts >= attack_start:
+        return label
     return 'BENIGN'
 
 
@@ -237,7 +268,7 @@ def write_labeled(rows, out_path, meta, fallback, sdn=None):
             item = dict(row)
             src = src_of(row)
             item.update(sdn.get(src, SDN_EMPTY))
-            item['Label'] = label_for(src, meta, fallback)
+            item['Label'] = label_for(row, meta, fallback)
             writer.writerow(item)
     return max(len(rows), 0)
 
@@ -287,6 +318,11 @@ def main():
     raw = raw_dir()
     out_dir = processed_dir()
     pcaps = iter_pcaps(raw)
+    # ONLY_RUNS=a,b convierte solo esas corridas (la interfaz web convierte la
+    # que acaba de terminar sin reprocesar los demas pcap).
+    solo = [x.strip() for x in os.environ.get('ONLY_RUNS', '').split(',') if x.strip()]
+    if solo:
+        pcaps = [p for p in pcaps if os.path.splitext(os.path.basename(p))[0] in solo]
     if not pcaps:
         print('No hay pcap en %s' % raw)
         return

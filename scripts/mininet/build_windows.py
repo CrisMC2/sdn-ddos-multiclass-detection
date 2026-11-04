@@ -25,37 +25,45 @@ Corre en la Mac, sin Docker:
   python3 scripts/mininet/build_windows.py
 """
 import csv
+import json
 import math
 import os
+import re
 
-from paths import metrics_dir, processed_dir
-
-SCENARIOS = ('baseline', 'synflood', 'httpflood', 'slowloris', 'icmpflood')
+from paths import metrics_dir, processed_dir, raw_dir
+from roles import SCENARIOS
 
 # Columnas de referencia (NO son features: el entrenamiento las descarta).
-REF_FIELDS = ['timestamp', 'elapsed_s', 'scenario', 'run']
+# 'profile' es el perfil de ataque de la corrida (normal, bajo, sigiloso,
+# pulsos, rampa): sirve para evaluar por perfil, no es una feature.
+REF_FIELDS = ['timestamp', 'elapsed_s', 'scenario', 'run', 'profile']
 
 # Features que salen de la sonda y los contadores del portal.
+# core_flows sale de la tabla OpenFlow del switch core: es un dato SDN, y por
+# eso lleva el prefijo sdn_ (los grupos de features se arman por prefijo).
+# benign_real_tx_* (la interfaz del navegador del operador) ya no entra: sin
+# nadie navegando solo es ruido de la interfaz y no distingue nada.
 PROBE_FIELDS = [
-    'server_rx_pps', 'server_rx_bps', 'server_conns', 'core_flows',
+    'server_rx_pps', 'server_rx_bps', 'server_conns', 'sdn_core_flows',
     'probe_latency_ms', 'http_ok',
-    'benign_real_tx_pps', 'benign_real_tx_bps',
 ]
 
 # Features derivadas del tiempo (cambio y suavizado).
 DERIVED_FIELDS = [
-    'core_flows_delta', 'rx_pps_delta', 'rx_pps_roll3', 'conns_roll3',
+    'sdn_core_flows_delta', 'rx_pps_delta', 'rx_pps_roll3', 'conns_roll3',
 ]
 
 # Features de la vista SDN del controlador (0 si no hay _sdn.csv).
-# Las *_icmp / *_tcp son la clave para separar icmpflood de synflood: el
-# protocolo solo se ve en la telemetria del controlador, no en los
-# contadores del portal (que ven igual los dos floods).
+# Las *_icmp / *_tcp / *_udp son la clave para separar floods que se ven
+# igual en los contadores del portal pero usan protocolos distintos (p.ej.
+# icmpflood vs synflood, o udpflood vs los dos): el protocolo solo se ve en
+# la telemetria del controlador, no en el portal.
 SDN_FIELDS = [
     'sdn_flows_total', 'sdn_src_total', 'sdn_delta_pkts', 'sdn_delta_bytes',
     'sdn_src_entropy', 'sdn_src_entropy_norm', 'sdn_max_src_share',
     'sdn_mean_pkts_per_flow',
-    'sdn_pkts_icmp', 'sdn_pkts_tcp', 'sdn_frac_icmp', 'sdn_frac_tcp',
+    'sdn_pkts_icmp', 'sdn_pkts_tcp', 'sdn_pkts_udp',
+    'sdn_frac_icmp', 'sdn_frac_tcp', 'sdn_frac_udp',
     # Suavizado (rolling max de los ultimos SDN_ROLL s): el controlador
     # muestrea cada ~2 s, asi que la senal de protocolo sale a rafagas y
     # queda en 0 en la mayoria de las ventanas. El rolling max la hace
@@ -63,6 +71,7 @@ SDN_FIELDS = [
     # detectar. Es memoria corta (no mira todo el escenario), asi que
     # sigue siendo defendible como deteccion en linea.
     'sdn_pkts_icmp_roll', 'sdn_frac_icmp_roll',
+    'sdn_pkts_udp_roll', 'sdn_frac_udp_roll',
 ]
 
 # Ventana (en segundos) del rolling max de la senal de protocolo.
@@ -154,8 +163,10 @@ def sdn_snapshots(path):
 
         pkts_icmp = per_proto.get(1, 0.0)   # proto 1 = ICMP
         pkts_tcp = per_proto.get(6, 0.0)    # proto 6 = TCP
+        pkts_udp = per_proto.get(17, 0.0)   # proto 17 = UDP
         frac_icmp = pkts_icmp / delta_pkts_total if delta_pkts_total > 0 else 0.0
         frac_tcp = pkts_tcp / delta_pkts_total if delta_pkts_total > 0 else 0.0
+        frac_udp = pkts_udp / delta_pkts_total if delta_pkts_total > 0 else 0.0
 
         snapshots[ts] = {
             'sdn_flows_total': n_flows,
@@ -168,14 +179,17 @@ def sdn_snapshots(path):
             'sdn_mean_pkts_per_flow': round(delta_pkts_total / n_flows, 1) if n_flows else 0.0,
             'sdn_pkts_icmp': round(pkts_icmp, 1),
             'sdn_pkts_tcp': round(pkts_tcp, 1),
+            'sdn_pkts_udp': round(pkts_udp, 1),
             'sdn_frac_icmp': round(frac_icmp, 4),
             'sdn_frac_tcp': round(frac_tcp, 4),
+            'sdn_frac_udp': round(frac_udp, 4),
         }
     return snapshots
 
 
 def sdn_for(ts, snapshots, sorted_ts):
-    """La telemetria SDN mas reciente con instante <= ts."""
+    """La telemetria SDN mas reciente con instante <= ts. Si todavia no hubo
+    ninguna muestra, ceros: nunca se usa una muestra del futuro."""
     if not sorted_ts:
         return {name: 0.0 for name in SDN_FIELDS}
     chosen = None
@@ -185,8 +199,48 @@ def sdn_for(ts, snapshots, sorted_ts):
         else:
             break
     if chosen is None:
-        chosen = sorted_ts[0]
+        return {name: 0.0 for name in SDN_FIELDS}
     return snapshots[chosen]
+
+
+def load_meta(run_name):
+    """meta.json de la corrida (data/raw/<corrida>.meta.json), o {}."""
+    path = os.path.join(raw_dir(), '%s.meta.json' % run_name)
+    if not os.path.isfile(path):
+        return {}
+    try:
+        with open(path) as fh:
+            return json.load(fh)
+    except (OSError, ValueError):
+        return {}
+
+
+def label_window(base, elapsed, meta):
+    """BENIGN antes del ataque, el nombre del ataque desde que arranca.
+    baseline siempre BENIGN. Una corrida vieja, sin el instante de inicio en
+    su meta, se etiqueta entera con el escenario (comportamiento anterior)."""
+    if base == 'baseline':
+        return 'BENIGN'
+    start = meta.get('attack_start_elapsed')
+    if start is None:
+        # Meta nueva (trae onset_planned_s) sin inicio registrado: el ataque
+        # nunca arranco, todo fue benigno. Meta vieja: entera con el escenario.
+        return 'BENIGN' if 'onset_planned_s' in meta else base
+    offset = elapsed - int(start)
+    if offset < 0:
+        return 'BENIGN'
+    # Ataque a pulsos: la ventana es ataque solo si cae en un tramo ON. La
+    # ventana `start` es la primera que contiene trafico de ataque (offset 0).
+    # Ventanas ON: offsets 0..on_s (on_s + 1 ventanas): la ultima recoge la
+    # cola del pulso (arranque de hping3/curl + el timeout corta un poco
+    # despues). En una corrida real ON 3 s / OFF 8 s esa ventana traia ~400
+    # pps frente a ~200 del trafico normal: es ataque, no BENIGN.
+    if meta.get('attack_mode') == 'pulsos':
+        on_s = int(meta.get('pulse_on_s') or 0)
+        off_s = int(meta.get('pulse_off_s') or 0)
+        if on_s > 0 and off_s > 0 and offset % (on_s + off_s) > on_s:
+            return 'BENIGN'
+    return base
 
 
 # --------------------------------------------------------------------------
@@ -199,21 +253,28 @@ def build_run(run_name, base, run_id):
         return []
     snapshots = sdn_snapshots(os.path.join(metrics_dir(), '%s_sdn.csv' % run_name))
     sorted_ts = sorted(snapshots)
-    label = 'BENIGN' if base == 'baseline' else base
+    meta = load_meta(run_name)
 
     out = []
     pps_history = []
     conns_history = []
     icmp_pkts_history = []
     icmp_frac_history = []
+    udp_pkts_history = []
+    udp_frac_history = []
     prev_core = None
     prev_pps = None
     for row in interno:
+        # La primera muestra de cada corrida sale vacia (los contadores del
+        # portal arrancan en ese instante, rx_pps = 0): no es una ventana real.
+        if int(_num(row.get('elapsed_s'))) <= 1:
+            continue
         ts = int(_num(row.get('timestamp')))
         rx_pps = _num(row.get('server_rx_pps'))
         conns = _num(row.get('server_conns'))
         core = _num(row.get('core_flows'))
         code = (row.get('probe_http_code') or '').strip()
+        elapsed = int(_num(row.get('elapsed_s')))
 
         pps_history.append(rx_pps)
         conns_history.append(conns)
@@ -225,19 +286,18 @@ def build_run(run_name, base, run_id):
             'elapsed_s': int(_num(row.get('elapsed_s'))),
             'scenario': base,
             'run': run_id,
+            'profile': meta.get('attack_profile') or 'normal',
             'server_rx_pps': rx_pps,
             'server_rx_bps': _num(row.get('server_rx_bps')),
             'server_conns': conns,
-            'core_flows': core,
+            'sdn_core_flows': core,
             'probe_latency_ms': _num(row.get('probe_latency_ms')),
             'http_ok': 1 if code == '200' else 0,
-            'benign_real_tx_pps': _num(row.get('benign_real_tx_pps')),
-            'benign_real_tx_bps': _num(row.get('benign_real_tx_bps')),
-            'core_flows_delta': 0.0 if prev_core is None else core - prev_core,
+            'sdn_core_flows_delta': 0.0 if prev_core is None else core - prev_core,
             'rx_pps_delta': 0.0 if prev_pps is None else rx_pps - prev_pps,
             'rx_pps_roll3': round(roll_pps, 1),
             'conns_roll3': round(roll_conns, 1),
-            'Label': label,
+            'Label': label_window(base, elapsed, meta),
         }
         record.update(sdn_for(ts, snapshots, sorted_ts))
         # Suavizado de la senal de protocolo (rolling max de SDN_ROLL s).
@@ -245,6 +305,10 @@ def build_run(run_name, base, run_id):
         icmp_frac_history.append(record.get('sdn_frac_icmp', 0.0))
         record['sdn_pkts_icmp_roll'] = round(max(icmp_pkts_history[-SDN_ROLL:]), 1)
         record['sdn_frac_icmp_roll'] = round(max(icmp_frac_history[-SDN_ROLL:]), 4)
+        udp_pkts_history.append(record.get('sdn_pkts_udp', 0.0))
+        udp_frac_history.append(record.get('sdn_frac_udp', 0.0))
+        record['sdn_pkts_udp_roll'] = round(max(udp_pkts_history[-SDN_ROLL:]), 1)
+        record['sdn_frac_udp_roll'] = round(max(udp_frac_history[-SDN_ROLL:]), 4)
         out.append(record)
         prev_core = core
         prev_pps = rx_pps
@@ -276,11 +340,21 @@ def discover_runs():
         run_id = parts[1] if len(parts) > 1 else 'base'
         if base in SCENARIOS:
             runs.append((run_name, base, run_id))
+    # ONLY_TAGS=regex arma solo las corridas cuya etiqueta calza (p.ej. las de
+    # una campana: 'mac'), y SI escribe el ventanas.csv combinado de esas.
+    patron = os.environ.get('ONLY_TAGS', '').strip()
+    if patron:
+        runs = [r for r in runs if re.search(patron, r[2])]
+    # ONLY_RUNS=a,b arma solo esas corridas (lo usa la interfaz web).
+    solo = [x.strip() for x in os.environ.get('ONLY_RUNS', '').split(',') if x.strip()]
+    if solo:
+        runs = [r for r in runs if r[0] in solo]
     return runs
 
 
 def main():
-    out_dir = os.path.join(processed_dir(), 'ventanas')
+    # WINDOWS_DIR permite escribir un dataset nuevo sin pisar el anterior.
+    out_dir = os.path.join(processed_dir(), os.environ.get('WINDOWS_DIR', 'ventanas'))
     os.makedirs(out_dir, exist_ok=True)
 
     runs = discover_runs()
@@ -309,8 +383,13 @@ def main():
         print('No habia metricas en %s. Corre antes un escenario.' % metrics_dir())
         return
 
-    write_csv(os.path.join(out_dir, 'ventanas.csv'), combined)
-    print('\n%d ventanas en total -> %s' % (len(combined), os.path.join(out_dir, 'ventanas.csv')))
+    if os.environ.get('ONLY_RUNS', '').strip():
+        # Con un subconjunto no se reescribe el combinado: lo pisaria con
+        # menos corridas de las que tiene el dataset completo.
+        print('\n%d ventanas -> %s' % (len(combined), out_dir))
+    else:
+        write_csv(os.path.join(out_dir, 'ventanas.csv'), combined)
+        print('\n%d ventanas en total -> %s' % (len(combined), os.path.join(out_dir, 'ventanas.csv')))
     if not sdn_seen:
         print('Nota: ninguna ventana trae telemetria SDN (columnas sdn_* en 0).')
         print('      Vuelve a correr los escenarios con el controlador nuevo')

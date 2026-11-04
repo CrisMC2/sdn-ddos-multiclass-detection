@@ -1,0 +1,24 @@
+# Registro unico de escenarios. Una linea por escenario. Lo leen roles.py
+# (Python, adentro y afuera de Docker) y run_scenario.sh/capture_campus.sh
+# (bash, que no dependen de Python en el host).
+#
+# Formato:   nombre            -> escenario del conjunto base
+#            nombre  extra     -> escenario extra
+#
+# "all" y "repeat" corren solo el conjunto base, para que una campana de datos
+# siga siendo la de siempre (baseline + 4 ataques). Los "extra" se piden por
+# nombre, o se suman con SCENARIO_SET=extended.
+#
+# Agregar un ataque: una linea aqui + su generador en capture_campus.py
+# (_install_scripts/start_attack) + su tasa en roles.py.
+# '#' y lineas vacias se ignoran.
+
+baseline
+synflood
+httpflood
+slowloris
+icmpflood
+udpflood     extra
+ackflood     extra
+slowpost     extra
+multivector  extra
