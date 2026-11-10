@@ -25,7 +25,7 @@ function pintarCabecera() {
   }
   $('#lh-sub').textContent = hay
     ? st.run_name + (st.elapsed != null ? ' · t+' + Math.round(st.elapsed) + ' s' : '')
-    : 'Configura una simulación arriba y el campus cobrará vida.';
+    : 'Topología del campus · Sin simulación activa';
   const stop = $('#btn-stop');
   stop.hidden = !(hay && st.activo);
   stop.disabled = !st.activo;

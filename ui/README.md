@@ -11,6 +11,30 @@ Git Bash, WSL, macOS y Linux.
 3. Desde la raíz del repo: `python ui/app.py`
 4. Abre <http://127.0.0.1:8765> (`Ctrl+C` en la terminal para cerrarla).
 
+## Apariencia
+
+Interfaz inspirada en las utilidades de Windows clásico de la época de XP:
+superficies grises, selección azul oscuro, bordes rectos y controles con relieve.
+Los iconos son SVG originales y todos los recursos funcionan sin internet.
+En escritorio, la configuración queda junto a la topología; en pantallas pequeñas
+se apilan y el plano de red permite desplazamiento horizontal. El color se reserva
+para selección, series y estados.
+
+
+## Plano de infraestructura
+
+El plano representa borde de Internet (routers y seguridad principal/reserva),
+centro de datos (DMZ, portal, racks y control de acceso), distribucion optica
+(OLT y ONT), administracion, ocho pabellones y servicios del campus.
+Los equipos auxiliares y siete edificios adicionales son ilustrativos: no crean
+contenedores, hosts, servicios ni enlaces nuevos en Mininet.
+
+Los cinco grupos originales se presentan como Administracion y Pabellones A–D.
+Conservan sus indices, hosts y asociaciones de IP; las cantidades por grupo se
+siguen configurando en la interfaz. Las rutas dibujadas pasan por la distribucion
+y terminan en el mismo portal. Las tasas y los estados provienen de las metricas
+existentes; el plano no mide velocidades opticas ni conmutacion de respaldo.
+
 ## Dos módulos
 
 - **Entorno**: revisa Docker, la imagen `ataque-sdn`, el puerto 8080 y el disco, y
@@ -50,11 +74,11 @@ ui/
 │   └── routes.py         endpoints /api/*
 └── web/                  la página (sin build, sin librerías, sin internet)
     ├── index.html
-    ├── icons.svg         set de íconos
+    ├── icons.svg         iconos vectoriales originales, estilo escritorio clásico
     ├── css/              tokens, base, layout, components, entorno, simulacion, campus, charts
     └── js/
         ├── main.js       arranque y sondeo del estado
-        ├── core/         dom, api, bus, state, format, theme, router
+        ├── core/         dom, api, bus, state, format, router
         ├── entorno/      módulo Entorno
         └── simulacion/   config, campus, packets, stepper, tiles, charts, resumen
 ```

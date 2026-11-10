@@ -1,47 +1,85 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Set de iconos de la interfaz. Se dibujan con trazo (heredan el color del
-     texto) y se usan con <svg class="ic"><use href="/static/icons.svg#i-nombre"/></svg>.
-     Para agregar uno: un <symbol id="i-nombre" viewBox="0 0 24 24"> con trazos. -->
+
+<!-- Iconos vectoriales originales inspirados en utilidades de escritorio clasicas. -->
 <svg xmlns="http://www.w3.org/2000/svg">
-  <!-- Marca y navegacion -->
-  <symbol id="i-logo" viewBox="0 0 24 24"><circle cx="6" cy="7" r="2.2"/><circle cx="18" cy="7" r="2.2"/><circle cx="12" cy="18" r="2.2"/><path d="M8.2 7h7.6M7.2 8.9l3.7 7.2M16.8 8.9l-3.7 7.2"/></symbol>
-  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></symbol>
-  <symbol id="i-sim" viewBox="0 0 24 24"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="19" r="2"/><path d="M7 6h10M6 7.8l5 9.4M18 7.8l-5 9.4"/><path d="M10.2 11.2l3.6 1.6" stroke-dasharray="1 2.4"/></symbol>
-  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+
+  <symbol id="i-logo" viewBox="0 0 24 24"><g stroke="#505050" stroke-width="1"><path fill="none" d="M12 9v5M5 14h14M5 14v3M19 14v3"/><path fill="#c0c0c0" d="M7 1h10v8H7zM1 16h8v7H1zM15 16h8v7h-8z"/><path fill="#000080" d="M9 3h6v4H9zM3 18h4v3H3zM17 18h4v3h-4z"/></g></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><g stroke="#303030" stroke-width="1" stroke-linejoin="miter"><path fill="#b0b0b0" d="M2 2h19v15H2z"/><path fill="white" stroke="white" d="M3 16V3h17"/><path fill="#000080" d="M5 5h13v9H5z"/><path fill="#008080" stroke="none" d="M6 6h11v3H6z"/><path fill="#c0c0c0" d="M9 17h5v3H9zM5 20h13v2H5z"/><path stroke="white" d="M7 7h5"/></g></symbol>
+  <symbol id="i-sim" viewBox="0 0 24 24"><g stroke="#505050" stroke-width="1"><path fill="none" d="M12 9v5M5 14h14M5 14v3M19 14v3"/><path fill="#c0c0c0" d="M7 1h10v8H7zM1 16h8v7H1zM15 16h8v7h-8z"/><path fill="#000080" d="M9 3h6v4H9zM3 18h4v3H3zM17 18h4v3h-4z"/></g></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><g stroke="#404040" stroke-width="1"><path fill="#d4d0c8" d="M2 3h20v18H2z"/><path stroke="white" d="M3 20V4h18"/><path d="M7 6v12M12 6v12M17 6v12"/><path fill="#b0b0b0" d="M5 8h4v4H5zM10 13h4v4h-4zM15 7h4v4h-4z"/></g></symbol>
   <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
 
-  <!-- Estado y acciones -->
+
   <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.8 2.8L16.5 9.5"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></symbol>
-  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5L2.5 20h19z"/><path d="M12 10v4.5M12 17.5h.01"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><g stroke="#404000" stroke-width="1"><path fill="#ffff00" d="M12 2L1 22h22z"/><path stroke="black" stroke-width="2" d="M12 8v7M12 17v2"/></g></symbol>
   <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
   <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2.5L4.5 13.5H11l-1 8 8.5-11H12z"/></symbol>
-  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></symbol>
-  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path fill="#008000" stroke="#004000" stroke-width="1" d="M6 3l15 9-15 9z"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><path fill="#b00000" stroke="#600000" stroke-width="1" d="M5 5h14v14H5z"/></symbol>
   <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.3-4.3L4 8.5M4 4v4.5h4.5M4 13a8 8 0 0 0 14.3 4.3l1.7-1.8M20 20v-4.5h-4.5"/></symbol>
   <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 3.5h4M6 7l1 13h10l1-13M10 11v6M14 11v6"/></symbol>
   <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2.5 12h2M19.5 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></symbol>
   <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
   <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
-  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 4v16h16M8 15l3-4 3 2.5 5-6.5"/></symbol>
-  <symbol id="i-table" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/></symbol>
-  <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5.5" rx="8" ry="2.8"/><path d="M4 5.5v6c0 1.6 3.6 2.8 8 2.8s8-1.2 8-2.8v-6M4 11.5v6c0 1.6 3.6 2.8 8 2.8s8-1.2 8-2.8v-6"/></symbol>
-  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><g stroke="#404040" stroke-width="1"><path fill="white" d="M2 3h20v18H2z"/><path fill="#000080" d="M3 4h18v3H3z"/><path stroke="#008000" fill="none" d="M5 17l4-5 4 3 5-6"/><path d="M5 9v9h14" fill="none"/></g></symbol>
+  <symbol id="i-table" viewBox="0 0 24 24"><g stroke="#404040" stroke-width="1"><path fill="white" d="M2 3h20v19H2z"/><path fill="#000080" d="M2 3h20v5H2z"/><path d="M2 13h20M2 17h20M8 8v14M15 8v14"/></g></symbol>
+  <symbol id="i-database" viewBox="0 0 24 24"><g stroke="#404040" stroke-width="1"><path fill="#a0a0a0" d="M4 5h16v14c0 4-16 4-16 0z"/><ellipse fill="#e0e0e0" cx="12" cy="5" rx="8" ry="3"/><path fill="none" stroke="white" d="M5 10c3 3 11 3 14 0M5 15c3 3 11 3 14 0"/></g></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><g stroke="#404040" stroke-width="1"><path fill="white" d="M5 2h10l5 5v15H5z"/><path fill="#c0c0c0" d="M15 2v5h5"/><path stroke="#000080" d="M8 11h9M8 14h9M8 17h6"/></g></symbol>
 
-  <!-- Entorno -->
-  <symbol id="i-server" viewBox="0 0 24 24"><rect x="3" y="3.5" width="18" height="7" rx="2"/><rect x="3" y="13.5" width="18" height="7" rx="2"/><path d="M7 7h.01M7 17h.01"/></symbol>
-  <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3.3 7.6L12 12.6l8.7-5M12 22V12.6"/></symbol>
-  <symbol id="i-disk" viewBox="0 0 24 24"><path d="M3 15l2.4-8.6A2 2 0 0 1 7.3 5h9.4a2 2 0 0 1 1.9 1.4L21 15"/><rect x="3" y="15" width="18" height="5" rx="2"/><path d="M7 17.5h.01"/></symbol>
+
+  <symbol id="i-server" viewBox="0 0 32 32">
+    <g stroke="#404040" stroke-width="1" stroke-linejoin="miter">
+      <path fill="#eceae2" d="M8 5l7-3h13l-6 3z"/>
+      <path fill="#989488" d="M22 5l6-3v24l-6 4z"/>
+      <path fill="#c8c4b8" d="M8 5h14v25H8z"/>
+      <path fill="none" stroke="white" d="M9 29V6h12"/>
+      <path fill="#454545" d="M11 8h8v4h-8zM11 14h8v3h-8z"/>
+      <path fill="none" stroke="#b0b0b0" d="M12 9h5M12 15h5"/>
+      <path fill="#008000" stroke="#004000" d="M11 20h2v2h-2z"/>
+      <path fill="#808080" d="M17 20h2v2h-2z"/>
+      <path stroke="#606060" d="M11 25h8M11 27h8M25 8v13"/>
+      <path fill="#808080" d="M7 30h16v1H7z"/>
+    </g>
+  </symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><g stroke="#604000" stroke-width="1"><path fill="#e0b040" d="M2 5h8l2 3h10v13H2z"/><path fill="#f0d060" d="M2 10h20l-3 11H1z"/><path stroke="#ffffc0" d="M3 11h17"/></g></symbol>
+  <symbol id="i-disk" viewBox="0 0 24 24"><path d="M3 15l2.4-8.6A2 2 0 0 1 7.3 5h9.4a2 2 0 0 1 1.9 1.4L21 15"/><rect x="3" y="15" width="18" height="5"/><path d="M7 17.5h.01"/></symbol>
   <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 2.5v5.5M15 2.5v5.5"/><path d="M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v3.5"/></symbol>
 
-  <!-- Campus -->
+
+  <symbol id="i-modem" viewBox="0 0 32 32">
+    <g stroke="#404040" stroke-width="1" stroke-linejoin="miter">
+      <path fill="none" stroke="#606060" d="M24 11V5h5V2"/>
+      <path fill="#e0ded6" d="M2 15l6-7h19l3 7z"/>
+      <path fill="#c8c4b8" d="M2 15h28v11H2z"/>
+      <path fill="#949084" d="M27 15h3v11h-3z"/>
+      <path fill="none" stroke="white" d="M3 25V16h24M7 10h17"/>
+      <path fill="#303030" d="M5 19h5v4H5zM21 18h5v5h-5z"/>
+      <path fill="none" stroke="#b0b0b0" d="M22 19h3M22 21h3"/>
+      <path stroke="#008000" stroke-width="2" d="M13 19v2M16 19v2"/>
+      <path stroke="#a06000" stroke-width="2" d="M19 19v2"/>
+      <path fill="#606060" d="M5 27h4v2H5zM23 27h4v2h-4z"/>
+    </g>
+  </symbol>
   <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18"/></symbol>
-  <symbol id="i-terminal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/></symbol>
-  <symbol id="i-switch" viewBox="0 0 24 24"><rect x="2.5" y="8" width="19" height="8" rx="2"/><path d="M6.5 12h.01M10 12h.01M13.5 12h.01M17 12h.01"/></symbol>
+  <symbol id="i-terminal" viewBox="0 0 24 24"><g stroke="#303030" stroke-width="1" stroke-linejoin="miter"><path fill="#b0b0b0" d="M2 2h19v15H2z"/><path fill="white" stroke="white" d="M3 16V3h17"/><path fill="#000080" d="M5 5h13v9H5z"/><path fill="#008080" stroke="none" d="M6 6h11v3H6z"/><path fill="#c0c0c0" d="M9 17h5v3H9zM5 20h13v2H5z"/><path stroke="white" d="M7 7h5"/></g></symbol>
+  <symbol id="i-switch" viewBox="0 0 32 32">
+    <g stroke="#404040" stroke-width="1" stroke-linejoin="miter">
+      <path fill="#c8ccd0" d="M2 14l6-7h21l1 7z"/>
+      <path fill="#90989e" d="M2 14h28v12H2z"/>
+      <path fill="#606870" d="M27 14h3v12h-3z"/>
+      <path fill="none" stroke="#f0f0f0" d="M3 25V15h24M8 9h18"/>
+      <path fill="#202830" d="M5 18h4v5H5zM11 18h4v5h-4zM17 18h4v5h-4z"/>
+      <path fill="none" stroke="#b0b0b0" d="M6 19h2M12 19h2M18 19h2"/>
+      <path stroke="#008000" stroke-width="2" d="M24 18v2M24 22v2"/>
+      <path fill="none" stroke="#505860" d="M12 11h7M16 9l3 2-3 2"/>
+      <path fill="#505050" d="M5 27h4v2H5zM23 27h4v2h-4z"/>
+    </g>
+  </symbol>
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></symbol>
 
-  <!-- Escenarios -->
+
   <symbol id="i-baseline" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></symbol>
   <symbol id="i-syn" viewBox="0 0 24 24"><path d="M2.5 7.5l3.5 3.5 3.5-3.5 3.5 3.5 3.5-3.5 3.5 3.5M2.5 15.5l3.5 3.5 3.5-3.5 3.5 3.5 3.5-3.5 3.5 3.5"/></symbol>
   <symbol id="i-http" viewBox="0 0 24 24"><path d="M12 3.5l9 4.8-9 4.8-9-4.8z"/><path d="M3 12.7l9 4.8 9-4.8M3 17l9 4.8 9-4.8"/></symbol>
@@ -49,7 +87,14 @@
   <symbol id="i-icmp" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M4.9 4.9a10 10 0 0 0 0 14.2M19.1 4.9a10 10 0 0 1 0 14.2"/></symbol>
   <symbol id="i-udp" viewBox="0 0 24 24"><path d="M3 6h9M3 12h18M3 18h9M16 4.5l4.5 4.5M16 15l4.5 4.5"/></symbol>
   <symbol id="i-ack" viewBox="0 0 24 24"><path d="M3.5 12.5l4.5 4.5L17 7M10 17l1.2 1.2L21 8"/></symbol>
-  <symbol id="i-post" viewBox="0 0 24 24"><rect x="4.5" y="3" width="15" height="18" rx="2"/><path d="M8.5 8h7M8.5 12h7M8.5 16h4"/></symbol>
+  <symbol id="i-post" viewBox="0 0 24 24"><rect x="4.5" y="3" width="15" height="18"/><path d="M8.5 8h7M8.5 12h7M8.5 16h4"/></symbol>
   <symbol id="i-multi" viewBox="0 0 24 24"><circle cx="9" cy="12" r="5.5"/><circle cx="15" cy="12" r="5.5"/></symbol>
   <symbol id="i-generic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></symbol>
+  <symbol id="i-isp" viewBox="0 0 32 32"><g stroke="#285268" stroke-width="1"><circle fill="#2480a0" cx="16" cy="16" r="14"/><path fill="#60a8c0" stroke="none" d="M6 7l7-3 6 2-1 5-6 1-2 5-5-3zM20 17l7-2 1 7-6 6-4-5z"/><path fill="none" stroke="#a0d0dc" d="M7 6c-5 8-2 17 5 21M4 16h24"/></g></symbol>
+  <symbol id="i-router" viewBox="0 0 32 32"><g stroke="#404040" stroke-width="1"><path fill="#b8bec4" d="M2 12l7-6h20l1 6z"/><path fill="#90989e" d="M2 12h28v14H2z"/><path fill="#606870" d="M27 12h3v14h-3z"/><path fill="none" stroke="white" d="M3 25V13h24"/><path fill="#303030" d="M5 18h5v5H5zM13 18h5v5h-5z"/><path fill="none" stroke="#404850" d="M10 9h9m-3-2 3 2-3 2"/><path stroke="#008000" stroke-width="2" d="M23 18v3"/></g></symbol>
+  <symbol id="i-firewall" viewBox="0 0 32 32"><g stroke="#604030" stroke-width="1"><path fill="#c0a090" d="M3 9l6-5h21l-6 5z"/><path fill="#a06850" d="M3 9h21v20H3z"/><path fill="#704838" d="M24 9l6-5v20l-6 5z"/><path fill="none" stroke="#e0c8b0" d="M4 14h19M4 19h19M4 24h19M10 9v5M17 14v5M10 19v5M17 24v5"/><path fill="none" stroke="#a08068" d="M25 14l4-4M25 19l4-4M25 24l4-4"/></g></symbol>
+  <symbol id="i-building" viewBox="0 0 32 32"><g stroke="#404850" stroke-width=".8"><path fill="#b8c0c8" d="M5 7l8-5h13l-7 5z"/><path fill="#7c8894" d="M19 7l7-5v25l-7 4z"/><path fill="#b0b8c0" d="M5 7h14v24H5z"/><path fill="#f0f0e8" d="M7 10h3v4H7zM13 10h3v4h-3zM7 17h3v4H7zM13 17h3v4h-3z"/><path fill="#243848" d="M10 25h5v6h-5z"/><path fill="#d0d8d8" d="M21 9l3-2v4l-3 2zM21 16l3-2v4l-3 2zM21 23l3-2v4l-3 2z"/><path fill="none" stroke="white" d="M6 30V8h12"/></g></symbol>
+  <symbol id="i-rack" viewBox="0 0 32 32"><g stroke="#303030" stroke-width="1"><path fill="#c0c0b8" d="M5 3h20v28H5z"/><path fill="#808080" d="M25 3l3-2v27l-3 3z"/><path fill="#e0e0d8" d="M5 3l3-2h20l-3 2z"/><path fill="#303830" d="M8 6h14v4H8zM8 12h14v4H8zM8 18h14v4H8zM8 24h14v4H8z"/><path stroke="#b0b0a0" d="M10 8h6M10 14h6M10 20h6M10 26h6"/><path stroke="#c0b000" stroke-width="2" d="M19 7v2M19 13v2M19 19v2M19 25v2"/><path stroke="white" d="M6 30V4h18"/></g></symbol>
+  <symbol id="i-olt" viewBox="0 0 32 32"><g stroke="#404040" stroke-width="1"><path fill="#c8c8c0" d="M5 5h20v25H5z"/><path fill="#808880" d="M25 5l3-3v25l-3 3z"/><path fill="#e0e0d8" d="M5 5l3-3h20l-3 3z"/><path fill="#404840" d="M8 8h14v4H8zM8 15h14v4H8zM8 22h14v4H8z"/><path stroke="#b0b8b0" d="M10 9v2M13 9v2M16 9v2M10 16v2M13 16v2M16 16v2M10 23v2M13 23v2M16 23v2"/><path stroke="#008000" stroke-width="2" d="M20 9v2M20 16v2M20 23v2"/></g></symbol>
+  <symbol id="i-ont" viewBox="0 0 32 32"><g stroke="#404040" stroke-width="1"><path fill="#e0e0d8" d="M2 14l5-6h22l1 6z"/><path fill="#c0c0b8" d="M2 14h28v12H2z"/><path fill="#909088" d="M27 14h3v12h-3z"/><path fill="none" stroke="white" d="M3 25V15h24"/><path fill="#303030" d="M5 18h5v5H5zM12 18h5v5h-5z"/><path stroke="#008000" stroke-width="2" d="M22 18v3"/><path fill="none" d="M12 8V4h7"/></g></symbol>
 </svg>

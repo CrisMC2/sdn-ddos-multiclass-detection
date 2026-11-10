@@ -6,23 +6,23 @@ body {
   margin: 0;
   background: var(--page);
   color: var(--ink);
-  font: 14px/1.5 var(--font-ui);
+  font: 12px/1.5 var(--font-ui);
 }
 [hidden] { display: none !important; }
 code, pre { font-family: var(--font-mono); font-size: 12.5px; }
-code { background: var(--surface-2); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+code { background: var(--surface-2); border: 1px solid var(--line); border-radius: 0; padding: 1px 5px; }
 h1, h2, h3 { margin: 0; font-weight: 600; }
 p { margin: 0; }
 .muted { color: var(--ink-3); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-.ic { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.ic { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: square; stroke-linejoin: miter; }
 .ic.fill { fill: currentColor; stroke-width: 1.2; }
 .ic-lg { width: 28px; height: 28px; stroke-width: 1.5; }
 .ic.good { color: var(--good); }
 .ic.bad { color: var(--critical); }
 
-:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 0; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes pulso { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }

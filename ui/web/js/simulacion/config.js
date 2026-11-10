@@ -182,7 +182,7 @@ function pintarLanzar() {
   const btn = $('#btn-launch'); const nota = $('#launch-note');
   const f = estado();
   const falta = C.modo === 'multi' ? C.multi.size === 0 : !C.sel;
-  $('#btn-launch-txt').textContent = f.multi ? 'Lanzar ' + C.multi.size + ' ataques a la vez' : (C.sel ? 'Lanzar ' + C.sel.nombre : 'Lanzar simulación');
+  $('#btn-launch-txt').textContent = f.multi ? 'Iniciar ' + C.multi.size + ' ataques a la vez' : (C.sel ? 'Iniciar ' + C.sel.nombre : 'Iniciar simulación');
   let msg = ''; let mal = false; let ok = true;
   if (falta) { ok = false; msg = ''; }
   else if (activa()) { ok = false; msg = 'Hay una simulación en curso. Detenla o espera a que termine.'; }

@@ -1,10 +1,9 @@
-/* Arranque de la interfaz: tema, rutas, modulos y el sondeo del estado. */
+/* Arranque de la interfaz: rutas, modulos y el sondeo del estado. */
 import { $ } from './core/dom.js';
 import { api } from './core/api.js';
 import { emit, on } from './core/bus.js';
 import { cleanRows } from './core/format.js';
 import { S } from './core/state.js';
-import { initTheme } from './core/theme.js';
 import { go, initRouter, vistaInicial } from './core/router.js';
 import { cargarEntorno, initEntorno } from './entorno/entorno.js';
 
@@ -44,7 +43,6 @@ function pintarFranja(st) {
 }
 
 (async function init() {
-  initTheme();
   initRouter();
   initEntorno();
   on('conexion', (ok) => { $('#conn-lost').hidden = ok; });

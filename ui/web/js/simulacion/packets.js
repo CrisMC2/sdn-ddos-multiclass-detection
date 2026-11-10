@@ -1,5 +1,6 @@
-/* Paquetes que recorren la red. Cada uno viaja por la ruta real de su host:
-   host -> bus del laboratorio -> switch -> core -> DMZ -> portal.
+/* Paquetes que recorren la red. Cada uno recorre la ruta dibujada de su host:
+   host -> acceso de sector -> distribucion -> core -> DMZ -> portal.
+   La infraestructura auxiliar es visual; no agrega saltos a Mininet.
 
    Tipos (la forma tambien distingue, no solo el color):
      req   circulo azul     peticion normal de un alumno
@@ -34,7 +35,8 @@ export class MotorPaquetes {
   /** capaNormal / capaAtaque son <g> del SVG; hosts: [{tipo, forma, ruta, acc}] */
   constructor(capaNormal, capaAtaque, hosts, portalEl) {
     this.capas = { normal: capaNormal, ataque: capaAtaque };
-    this.hosts = hosts.map((h) => ({ ...h, r: preparar(h.ruta), rev: preparar([...h.ruta].reverse()), acc: Math.random() }));
+    // Compartir la referencia permite actualizar la forma de cada ataque desde campus.js.
+    this.hosts = hosts.map((h) => Object.assign(h, { r: preparar(h.ruta), rev: preparar([...h.ruta].reverse()), acc: Math.random() }));
     this.portalEl = portalEl;
     this.activos = [];
     this.pool = { req: [], resp: [], atk: [], app: [], slow: [] };

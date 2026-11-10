@@ -4,10 +4,17 @@ import { clamp, mean } from '../core/format.js';
 import { AREAS, PORTAL_CUPO, S, catalogo } from '../core/state.js';
 import { MotorPaquetes } from './packets.js';
 
-const NW = 148; const NH = 56;     // tamano de los nodos
-const TOP = 64; const LAB = 214;   // filas de la red (y)
-const LAB_X = [110, 305, 500, 695, 890];
-const POR_FILA = 8;                // hosts por fila en cada laboratorio
+// Solo presentacion: cinco sectores conservan los hosts y los indices del motor.
+// El resto del equipamiento es una infraestructura de referencia, sin hosts nuevos.
+const SECTORES = [
+  { titulo: 'Administración', x: 925, ont: 490, inicio: 535, enlace: 580 },
+  { titulo: 'Pabellón A', x: 130, ont: 800, inicio: 845, enlace: 675 },
+  { titulo: 'Pabellón B', x: 410, ont: 800, inicio: 845, enlace: 675 },
+  { titulo: 'Pabellón C', x: 690, ont: 800, inicio: 845, enlace: 675 },
+  { titulo: 'Pabellón D', x: 970, ont: 800, inicio: 845, enlace: 675 },
+];
+const COMPLEMENTOS = ['Pabellón E', 'Pabellón F', 'Pabellón G', 'Pabellón H', 'Biblioteca', 'Comedor', 'Transporte'];
+const POR_FILA = 8;
 
 let modelo = null;
 let motor = null;
@@ -15,18 +22,18 @@ let clave = '';
 
 /* ----------------------------- construccion ----------------------------- */
 
-function disposicion(ns, nb) {
+function construir(svg, ns, nb) {
+  if (motor) motor.detener();
+  svg.replaceChildren();
   const n = ns + nb;
   const filas = Math.ceil(n / POR_FILA);
-  const yFila = (r) => 306 + r * 30;
-  return { n, filas, yFila, yTexto: yFila(filas - 1) + 38 };
-}
-
-function construir(svg, ns, nb) {
-  svg.replaceChildren();
-  const d = disposicion(ns, nb);
-  const alto = d.yTexto + 44;
-  svg.setAttribute('viewBox', '0 0 1000 ' + alto);
+  const filaExtra = 845 + (filas - 1) * 26 + 86;
+  const alto = filaExtra + 150;
+  svg.setAttribute('viewBox', '0 0 1100 ' + alto);
+  svg.setAttribute('aria-describedby', 'campus-desc');
+  svgEl('desc', { id: 'campus-desc' }, svg).textContent =
+    'Infraestructura de referencia de un campus universitario: borde de Internet, centro de datos y edificios. ' +
+    'Cinco sectores representan los hosts emulados; los equipos auxiliares y los edificios conectados con líneas discontinuas son ilustrativos.';
 
   const zona = svgEl('g', {}, svg);
   const enlaces = svgEl('g', {}, svg);
@@ -35,77 +42,149 @@ function construir(svg, ns, nb) {
   const nodos = svgEl('g', {}, svg);
   const hostsG = svgEl('g', {}, svg);
 
-  svgEl('rect', { class: 'zone-rect', x: 200, y: 22, width: 794, height: alto - 34, rx: 14 }, zona);
-  svgEl('text', { class: 'zone-label', x: 214, y: d.yTexto + 26 }, zona).textContent = 'Campus UNCP, red 10.0.0.0/8';
-  svgEl('text', { class: 'zone-label', x: 80, y: 24, 'text-anchor': 'middle' }, zona).textContent = 'Internet';
+  const texto = (parent, x, y, contenido, cls = 'zone-label', ancla = 'middle') => {
+    const t = svgEl('text', { class: cls, x, y, 'text-anchor': ancla }, parent);
+    t.textContent = contenido;
+    return t;
+  };
+  const region = (y, h, titulo) => {
+    svgEl('rect', { class: 'zone-rect', x: 16, y, width: 1068, height: h }, zona);
+    texto(zona, 30, y + 19, titulo, 'zone-title', 'start');
+  };
+  region(16, 252, '01  BORDE DE INTERNET');
+  region(282, 342, '02  CENTRO DE DATOS');
+  region(638, alto - 654, '03  CAMPUS UNIVERSITARIO');
 
-  const enlace = (dPath, carries, soft) => svgEl('path', { d: dPath, class: 'lk' + (carries ? ' carries' : '') + (soft ? ' soft' : '') }, enlaces);
-  enlace('M154 ' + TOP + 'H216');
-  enlace('M364 ' + TOP + 'H426');
-  enlace('M574 ' + TOP + 'H636', true);
-  enlace('M784 ' + TOP + 'H846', true);
-
-  const nodo = (cx, cy, icono, titulo, sub, cls) => {
-    const g = svgEl('g', { class: 'node ' + (cls || '') }, nodos);
-    svgEl('rect', { x: cx - NW / 2, y: cy - NH / 2, width: NW, height: NH, rx: 8 }, g);
-    const i = svgEl('svg', { class: 'ic', x: cx - NW / 2 + 12, y: cy - 10, width: 20, height: 20, 'aria-hidden': 'true' }, g);
-    svgEl('use', { href: '/static/icons.svg#i-' + icono }, i);
-    svgEl('text', { x: cx - NW / 2 + 42, y: cy - 3 }, g).textContent = titulo;
-    svgEl('text', { class: 'sub', x: cx - NW / 2 + 42, y: cy + 15 }, g).textContent = sub;
+  const enlace = (puntos, cls = '') => {
+    const d = puntos.map(([x, y], i) => (i ? 'L' : 'M') + x + ' ' + y).join(' ');
+    return svgEl('path', { d, class: 'lk ' + cls }, enlaces);
+  };
+  const icono = (parent, x, y, nombre, tam = 32) => {
+    const i = svgEl('svg', {
+      class: 'ic topology-icon', x, y, width: tam, height: tam,
+      style: 'width:' + tam + 'px;height:' + tam + 'px', 'aria-hidden': 'true',
+    }, parent);
+    svgEl('use', { href: '/static/icons.svg#i-' + nombre }, i);
+    return i;
+  };
+  const nodo = (cx, cy, nombre, titulo, sub, cls = '', ancho = 180) => {
+    const g = svgEl('g', { class: 'node ' + cls }, nodos);
+    svgEl('rect', { x: cx - ancho / 2, y: cy - 26, width: ancho, height: 52 }, g);
+    icono(g, cx - ancho / 2 + 7, cy - 16, nombre);
+    texto(g, cx - ancho / 2 + 46, cy - 3, titulo, 'node-label', 'start');
+    texto(g, cx - ancho / 2 + 46, cy + 15, sub, 'sub', 'start');
     return g;
   };
 
-  nodo(80, TOP, 'terminal', 'C2', 'fuera del campus', 'c2');
-  nodo(290, TOP, 'globe', 'Módem', '10.0.0.1');
-  nodo(500, TOP, 'switch', 'Switch core', 's1');
-  nodo(710, TOP, 'switch', 'DMZ', 's2');
+  // Borde duplicado, como en un plano de campus. El respaldo es ilustrativo.
+  nodo(165, 88, 'terminal', 'C2 externo', 'Origen de la orden', 'c2');
+  icono(nodos, 528, 42, 'isp', 44);
+  texto(nodos, 588, 61, 'Proveedor / ISP', 'equipment-label', 'start');
+  texto(nodos, 588, 78, 'Acceso principal y reserva', 'cnt', 'start');
+  enlace([[255, 88], [330, 88], [330, 64], [528, 64]], 'reference');
+  enlace([[550, 86], [550, 100], [435, 100], [435, 146]], 'reference');
+  enlace([[550, 100], [665, 100], [665, 146]], 'standby');
+  nodo(435, 146, 'router', 'Router A', 'Acceso principal', 'auxiliary');
+  nodo(665, 146, 'router', 'Router B', 'Reserva · esquema', 'auxiliary');
+  enlace([[435, 172], [435, 218]], 'reference');
+  enlace([[665, 172], [665, 218]], 'standby');
+  nodo(435, 218, 'firewall', 'Seguridad A', 'Perímetro · esquema', 'auxiliary');
+  nodo(665, 218, 'firewall', 'Seguridad B', 'Reserva · esquema', 'auxiliary');
+  enlace([[435, 244], [435, 265], [550, 265], [550, 340]], 'reference');
+  enlace([[665, 244], [665, 265], [550, 265]], 'standby');
 
-  // Portal: halo de presion detras, nodo, medidor de cupo debajo.
-  const halo = svgEl('rect', { class: 'halo', x: 920 - NW / 2 - 4, y: TOP - NH / 2 - 4, width: NW + 8, height: NH + 8, rx: 11 }, nodos);
-  const portal = nodo(920, TOP, 'server', 'Portal', '10.0.0.10', 'portal');
-  const st = svgEl('svg', { class: 'ic st', x: 920 + NW / 2 - 24, y: TOP - NH / 2 + 6, width: 16, height: 16, style: 'display:none', 'aria-hidden': 'true' }, portal);
+  // Nucleo y destino: conservan s1, s2 y el portal de la simulacion actual.
+  nodo(550, 340, 'switch', 'Switch core', 's1 · Núcleo SDN');
+  enlace([[550, 340], [210, 340], [210, 410]], 'carries');
+  nodo(210, 340, 'switch', 'DMZ', 's2 · Red de servidores');
+  const portal = nodo(210, 410, 'server', 'Portal', '10.0.0.10', 'portal');
+  const st = svgEl('svg', { class: 'ic st', x: 277, y: 390, width: 16, height: 16, style: 'display:none', 'aria-hidden': 'true' }, portal);
   svgEl('use', { href: '/static/icons.svg#i-check' }, st);
-  svgEl('rect', { class: 'meter-bg', x: 852, y: 104, width: 136, height: 5, rx: 2.5 }, nodos);
-  const medidor = svgEl('rect', { class: 'meter-fill', x: 852, y: 104, width: 0, height: 5, rx: 2.5 }, nodos);
-  const medidorT = svgEl('text', { class: 'meter-t', x: 852, y: 126 }, nodos);
+  svgEl('rect', { class: 'meter-bg', x: 142, y: 449, width: 136, height: 5 }, nodos);
+  const medidor = svgEl('rect', { class: 'meter-fill', x: 142, y: 449, width: 0, height: 5 }, nodos);
+  const medidorT = texto(nodos, 210, 472, '', 'meter-t');
+  const halo = svgEl('rect', { class: 'halo', x: 118, y: 382, width: 184, height: 56 }, nodos);
 
-  // Laboratorios, sus enlaces y sus hosts.
+  // Racks, controlador y acceso optico no agregan procesos a Docker.
+  icono(nodos, 125, 487, 'rack', 64);
+  icono(nodos, 213, 487, 'rack', 64);
+  texto(nodos, 200, 573, 'Racks de servicios', 'equipment-label');
+  texto(nodos, 200, 590, 'Equipamiento de referencia', 'cnt');
+  enlace([[210, 436], [210, 483]], 'reference');
+  enlace([[210, 483], [157, 483], [157, 487]], 'reference');
+  enlace([[210, 483], [245, 483], [245, 487]], 'reference');
+  enlace([[550, 340], [550, 675]], 'carries');
+  nodo(550, 456, 'olt', 'OLT', 'Cabecera óptica', 'auxiliary');
+  nodo(365, 540, 'switch', 'Control de acceso', 'Wi-Fi · esquema', 'auxiliary', 192);
+  enlace([[550, 456], [365, 456], [365, 514]], 'reference');
+  nodo(550, 580, 'switch', 'Distribución', 'Acceso del campus', 'auxiliary');
+  texto(nodos, 574, 514, 'Troncal óptica', 'cnt', 'start');
+  enlace([[550, 580], [760, 580], [760, 490], [925, 490]], 'carries');
+  enlace([[130, 675], [970, 675]], 'carries');
+
+  // Cada PC mantiene su sector, tipo e indice original. Solo cambia su posicion.
   const hosts = [];
-  const labs = [];
-  AREAS.forEach((area, i) => {
-    const x = LAB_X[i];
-    enlace('M500 ' + (TOP + NH / 2) + 'V140H' + x + 'V' + (LAB - NH / 2), true);
-    const gLab = nodo(x, LAB, 'switch', area.titulo, area.sw, 'lab');
-    labs.push(gLab);
-
-    const ultimoBus = d.yFila(d.filas - 1) - 17;
-    enlace('M' + x + ' ' + (LAB + NH / 2) + 'V' + ultimoBus, true, true);
-
-    for (let r = 0; r < d.filas; r++) {
-      const desde = r * POR_FILA; const hasta = Math.min(d.n, desde + POR_FILA);
+  SECTORES.forEach((sector, i) => {
+    const { x, ont, inicio, enlace: bus } = sector;
+    const lab = svgEl('g', { class: 'sector lab', 'data-sector': i }, nodos);
+    svgEl('title', {}, lab).textContent = sector.titulo + ': grupo emulado ' + AREAS[i].sw;
+    if (i === 0) {
+      icono(lab, x - 32, 342, 'building', 64);
+      texto(lab, x, 426, 'Edificio administrativo', 'equipment-label');
+      texto(lab, x, 443, 'Sector 1 · ' + AREAS[i].sw, 'cnt');
+    } else {
+      enlace([[x, 675], [x, ont]], 'carries');
+      icono(lab, x - 25, 692, 'building', 50);
+      texto(lab, x, 759, sector.titulo + ' · ' + AREAS[i].sw, 'equipment-label');
+    }
+    nodo(x, ont, 'ont', 'ONT', 'Acceso de sector ' + (i + 1), 'lab', 174);
+    const ultimaFila = inicio + (filas - 1) * 26;
+    enlace([[x, ont + 26], [x, ultimaFila - 17]], 'carries soft');
+    for (let r = 0; r < filas; r++) {
+      const desde = r * POR_FILA;
+      const hasta = Math.min(n, desde + POR_FILA);
       const cuantos = hasta - desde;
-      const sep = Math.min(22, 156 / Math.max(cuantos, 1));
-      const x0 = x - (sep * (cuantos - 1)) / 2;
-      const yBus = d.yFila(r) - 17; const yH = d.yFila(r);
-      if (cuantos > 1) enlace('M' + x0 + ' ' + yBus + 'H' + (x0 + sep * (cuantos - 1)), true, true);
+      const sep = 20;
+      const x0 = x - sep * (cuantos - 1) / 2;
+      const yH = inicio + r * 26;
+      const yBus = yH - 17;
+      if (cuantos > 1) enlace([[x0, yBus], [x0 + sep * (cuantos - 1), yBus]], 'carries soft');
       for (let k = 0; k < cuantos; k++) {
-        const idx = desde + k; const hx = x0 + k * sep;
+        const idx = desde + k;
+        const hx = x0 + k * sep;
         const esAlumno = idx < ns;
-        enlace('M' + hx + ' ' + yBus + 'V' + (yH - 7), true, true);
-        if (esAlumno) svgEl('circle', { class: 'host', cx: hx, cy: yH, r: 7 }, hostsG);
-        else svgEl('rect', { class: 'bot', x: hx - 6, y: yH - 6, width: 12, height: 12, transform: 'rotate(45 ' + hx + ' ' + yH + ')' }, hostsG);
-        hosts.push({
-          tipo: esAlumno ? 'alumno' : 'bot', lab: i, indice: esAlumno ? idx : idx - ns, forma: 'volumen',
-          ruta: [[hx, yH], [hx, yBus], [x, yBus], [x, 140], [500, 140], [500, TOP], [860, TOP]],
-        });
+        enlace([[hx, yBus], [hx, yH - 7]], 'carries soft');
+        const pc = svgEl('svg', { x: hx - 8, y: yH - 7, width: 16, height: 16, viewBox: '0 0 16 16', 'aria-hidden': 'true' }, hostsG);
+        svgEl('rect', { class: 'pc-case', x: 1, y: 1, width: 14, height: 10 }, pc);
+        svgEl('rect', { class: esAlumno ? 'host' : 'bot', x: 3, y: 3, width: 10, height: 6 }, pc);
+        svgEl('path', { class: 'pc-stand', d: 'M6 11v3H3v1h10v-1h-3v-3' }, pc);
+        const salida = i === 0
+          ? [[x, ont], [760, ont], [760, bus], [550, bus]]
+          : [[x, bus], [550, bus]];
+        const ruta = [[hx, yH], [hx, yBus], [x, yBus], ...salida, [550, 340], [210, 340], [210, 384]];
+        hosts.push({ tipo: esAlumno ? 'alumno' : 'bot', lab: i, indice: esAlumno ? idx : idx - ns, forma: 'volumen', ruta });
       }
     }
-    svgEl('text', { class: 'cnt', x, y: d.yTexto, 'text-anchor': 'middle' }, hostsG).textContent =
-      ns + (ns === 1 ? ' alumno, ' : ' alumnos, ') + nb + (nb === 1 ? ' infectada' : ' infectadas');
+    texto(hostsG, x, ultimaFila + 32, ns + ' alumnos · ' + nb + ' infectadas', 'cnt');
   });
 
+  // Edificios adicionales: conexion discontinua, sin PCs ni trafico ficticios.
+  texto(nodos, 40, filaExtra - 14, 'EXTENSIÓN DEL CAMPUS · EQUIPAMIENTO ILUSTRATIVO', 'zone-title', 'start');
+  const busExtra = filaExtra + 4;
+  const centros = COMPLEMENTOS.map((_nombre, i) => 96 + i * 151);
+  enlace([[550, 675], [550, filaExtra - 38], [centros[0], filaExtra - 38], [centros[0], busExtra]], 'reference');
+  enlace([[centros[0], busExtra], [centros.at(-1), busExtra]], 'reference');
+  COMPLEMENTOS.forEach((nombre, i) => {
+    const x = centros[i];
+    enlace([[x, busExtra], [x, filaExtra + 20]], 'reference');
+    icono(nodos, x - 23, filaExtra + 20, 'building', 46);
+    enlace([[x, filaExtra + 66], [x, filaExtra + 77]], 'reference');
+    icono(nodos, x - 12, filaExtra + 77, 'ont', 24);
+    texto(nodos, x, filaExtra + 119, nombre, 'equipment-label');
+  });
+  texto(nodos, 1060, alto - 14, 'Red del campus universitario · Esquema funcional reducido', 'cnt', 'end');
+
   modelo = { portal, halo, medidor, medidorT, hosts, ns, nb, estado: st };
-  if (motor) motor.detener();
   motor = new MotorPaquetes(capaNormal, capaAtaque, hosts, halo);
   if (S.view === 'simulacion') motor.arrancar();
 }
@@ -119,7 +198,7 @@ function formaDe(info, ip, botAttacks, cat) {
 
 function cargaDesdeMetricas(st, atacando) {
   const rows = S.rows; const ultima = rows[rows.length - 1];
-  const as = st.meta.attack_start_elapsed;
+  const as = st.meta && st.meta.attack_start_elapsed;
   const antes = rows.filter((r) => as == null || r.t < as);
   const base = mean(antes.map((r) => r.pps).filter((x) => x != null)) || 120;
   const bots = modelo.hosts.filter((x) => x.tipo === 'bot');
@@ -140,11 +219,11 @@ function pintarAviso(st, atacando, ultima) {
   const caja = $('#stage-alert');
   if (!atacando) { caja.hidden = true; caja.replaceChildren(); return; }
   const cat = catalogo();
-  const mapa = st.meta.bot_attacks || {};
+  const mapa = (st.meta && st.meta.bot_attacks) || {};
   const vectores = {};
   for (const ip of Object.keys(mapa)) vectores[mapa[ip]] = (vectores[mapa[ip]] || 0) + 1;
   const ids = Object.keys(vectores);
-  const nBots = st.meta.bots.length || modelo.hosts.filter((x) => x.tipo === 'bot').length;
+  const nBots = ((st.meta && st.meta.bots) || []).length || modelo.hosts.filter((x) => x.tipo === 'bot').length;
   const info = st.scenario_info;
 
   const hijos = [

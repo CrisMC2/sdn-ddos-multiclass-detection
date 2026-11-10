@@ -17,13 +17,13 @@
 <body>
 <div class="app">
 
-  <!-- ===================== Barra lateral ===================== -->
+  <!-- Consola clasica: titulo y herramientas -->
   <aside class="rail">
     <div class="brand">
       <svg class="ic brand-mark" aria-hidden="true"><use href="/static/icons.svg#i-logo"/></svg>
       <div>
         <div class="brand-name">Campus-DDoS-SDN</div>
-        <div class="brand-sub">Banco de pruebas UNCP</div>
+        <div class="brand-sub">Banco de pruebas de red</div>
       </div>
     </div>
 
@@ -35,9 +35,6 @@
 
     <div class="rail-foot">
       <ul class="rail-health" id="rail-health" aria-label="Estado del entorno"></ul>
-      <button class="theme-btn" id="theme-btn" type="button" aria-label="Cambiar entre tema claro y oscuro">
-        <svg class="ic" aria-hidden="true"><use href="/static/icons.svg#i-moon" id="theme-ic"/></svg><span id="theme-txt">Tema oscuro</span>
-      </button>
     </div>
   </aside>
 
@@ -61,7 +58,7 @@
       <section class="view" id="view-entorno" aria-labelledby="h-entorno" hidden>
         <header class="view-head">
           <h1 id="h-entorno">Entorno</h1>
-          <p class="lede">Lo que necesita la interfaz para lanzar una simulación. Si algo falla, aquí se ve antes de que falle una demo.</p>
+          <p class="lede">Estado de los servicios y comprobación de conectividad del banco de pruebas.</p>
         </header>
 
         <div class="banner" id="env-banner" role="status"></div>
@@ -89,7 +86,7 @@
       <section class="view" id="view-simulacion" aria-labelledby="h-sim" hidden>
         <header class="view-head">
           <h1 id="h-sim">Simulación</h1>
-          <p class="lede">Elige qué simular, lánzalo y míralo recorrer la red.</p>
+          <p class="lede">Control del escenario · Topología del campus · Captura de métricas</p>
         </header>
 
         <!-- 1. Configuracion: se pliega a una linea al lanzar -->
@@ -111,6 +108,11 @@
               <button type="button" class="seg-btn" id="mode-multi" aria-pressed="false"><svg class="ic" aria-hidden="true"><use href="/static/icons.svg#i-multi"/></svg>Varios a la vez</button>
             </div>
 
+            <div class="launch-bar">
+              <p class="launch-note" id="launch-note"></p>
+              <button class="btn btn-primary btn-lg" id="btn-launch" type="button"><svg class="ic fill" aria-hidden="true"><use href="/static/icons.svg#i-play"/></svg><span id="btn-launch-txt">Iniciar simulación</span></button>
+            </div>
+
             <div class="cfg-grid">
               <fieldset class="sc-list" id="sc-list"><legend class="sr-only">Escenario</legend></fieldset>
 
@@ -121,14 +123,14 @@
                 </div>
 
                 <div id="sc-panel" hidden>
-                  <section class="detail" aria-live="polite">
-                    <div class="sc-title">
+                  <details class="detail">
+                    <summary class="sc-title" title="Ver detalles del escenario">
                       <svg class="ic ic-lg" aria-hidden="true"><use href="/static/icons.svg#i-generic" id="sd-icon"/></svg>
                       <div>
                         <h3 id="sd-name"></h3>
                         <p class="muted" id="sd-group"></p>
                       </div>
-                    </div>
+                    </summary>
                     <p id="sd-desc"></p>
                     <dl class="facts" id="sd-facts">
                       <div><dt>Qué agota</dt><dd id="sd-agota"></dd></div>
@@ -136,7 +138,7 @@
                       <div><dt>Herramienta</dt><dd><code id="sd-tool"></code></dd></div>
                     </dl>
                     <ul class="chips" id="sd-mix" hidden aria-label="Ataques combinados"></ul>
-                  </section>
+                  </details>
 
                   <section class="form" aria-labelledby="h-conf">
                     <h3 id="h-conf">Parámetros</h3>
@@ -198,11 +200,6 @@
                         </label>
                       </div>
                     </details>
-
-                    <div class="launch-bar">
-                      <p class="launch-note" id="launch-note"></p>
-                      <button class="btn btn-primary btn-lg" id="btn-launch" type="button"><svg class="ic fill" aria-hidden="true"><use href="/static/icons.svg#i-play"/></svg><span id="btn-launch-txt">Lanzar simulación</span></button>
-                    </div>
                   </section>
                 </div>
               </div>
@@ -226,12 +223,13 @@
           <div class="stage-alert" id="stage-alert" hidden role="status"></div>
           <div class="error-box" id="live-error" role="alert" hidden></div>
 
-          <div class="stage-wrap"><svg id="campus" role="img" aria-labelledby="h-stage"></svg></div>
+          <div class="stage-wrap"><svg id="campus" role="img" aria-labelledby="h-stage" aria-describedby="topology-note"></svg></div>
 
           <footer class="stage-foot">
+            <p class="topology-note" id="topology-note">Infraestructura de referencia: 5 sectores emulados. Los equipos auxiliares son ilustrativos; las líneas discontinuas indican reserva o extensión visual.</p>
             <ul class="legend" aria-label="Leyenda del campus">
-              <li><svg class="lg-shape" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5" class="host"/></svg>Alumno</li>
-              <li><svg class="lg-shape" viewBox="0 0 14 14" aria-hidden="true"><rect x="2.5" y="2.5" width="9" height="9" transform="rotate(45 7 7)" class="bot"/></svg>PC infectada</li>
+              <li><svg class="lg-shape" viewBox="0 0 14 14" aria-hidden="true"><path d="M1 1h12v9H1zM5 10v3M9 10v3M3 13h8" fill="#c0c0c0" stroke="#404040"/><path d="M3 3h8v5H3z" fill="#000080"/></svg>Alumno</li>
+              <li><svg class="lg-shape" viewBox="0 0 14 14" aria-hidden="true"><path d="M1 1h12v9H1zM5 10v3M9 10v3M3 13h8" fill="#c0c0c0" stroke="#404040"/><path d="M3 3h8v5H3z" class="bot"/></svg>PC infectada</li>
               <li><svg class="lg-shape" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="3.2" class="pk-req"/></svg>Petición normal</li>
               <li><svg class="lg-shape" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="3.2" class="pk-resp"/></svg>Respuesta del portal</li>
               <li><svg class="lg-shape" viewBox="0 0 14 14" aria-hidden="true"><rect x="3.6" y="3.6" width="6.8" height="6.8" transform="rotate(45 7 7)" class="pk-atk"/></svg>Paquete de ataque</li>

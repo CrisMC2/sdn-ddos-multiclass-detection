@@ -1,95 +1,33 @@
-/* ==========================================================================
-   Tokens de diseno: color, tipografia y radios. Todo lo demas los consume.
-
-   Idea: un instrumento de medicion, no un panel de marketing. Superficies
-   frias y casi neutras, tinta azul-gris en vez de negro puro, y el color
-   reservado para lo que significa algo: los dos colores de las series
-   (validados con dataviz/validate_palette.js en claro y oscuro) y los de
-   estado (bien / critico). Lo unico que "grita" es el campus cuando hay un
-   ataque en curso.
-   ========================================================================== */
-
+/* Paleta Windows clasico. Colores reservados para seleccion, datos y estado. */
 :root {
-  --page: #eceff3;
-  --surface: #fcfcfb;
-  --surface-2: #f2f4f7;
-  --ink: #16212c;
-  --ink-2: #455364;
-  --ink-3: #667381;
-  --line: #dbe1e8;
-  --line-strong: #c2cbd5;
-  --grid: #e4e9ef;
-  --on-ink: #fcfcfb;
-
-  /* Series (categorico, slots 1 y 2 del orden validado). */
-  --s1: #2a78d6;   /* paquetes por segundo */
-  --s2: #eb6834;   /* latencia */
-  --s3: #1baf7a;   /* CPU del contenedor */
-  --s4: #6250d6;   /* memoria del contenedor */
-
-  /* Estado: solo para significar bien / critico, siempre con icono + texto. */
-  --good: #0ca30c;
-  --good-text: #006300;
-  --warning: #fab219;
-  --warning-text: #7a5200;
-  --critical: #d03b3b;
-  --critical-text: #b32f2f;
-
-  --focus: #2a78d6;
-  --r-lg: 10px;
-  --r-md: 6px;
-
-  --font-ui: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif;
-  /* Bahnschrift (DIN) viene con Windows 10+: da el aire de rotulo de
-     instrumento sin cargar ninguna fuente externa (la interfaz funciona sin
-     internet). En otros sistemas cae a la fuente del sistema. */
-  --font-display: "Bahnschrift", "DIN Alternate", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
-  --font-mono: "Cascadia Mono", "SF Mono", Consolas, ui-monospace, monospace;
-
+  --page: #c0c0c0;
+  --surface: #d4d0c8;
+  --surface-2: #e0e0e0;
+  --workspace: #ffffff;
+  --ink: #111111;
+  --ink-2: #333333;
+  --ink-3: #555555;
+  --line: #a0a0a0;
+  --line-strong: #808080;
+  --grid: #dedede;
+  --on-ink: #ffffff;
+  --s1: #000080;
+  --s2: #a04000;
+  --s3: #006400;
+  --s4: #800080;
+  --good: #008000;
+  --good-text: #006000;
+  --warning: #b07000;
+  --warning-text: #805000;
+  --critical: #c00000;
+  --critical-text: #a00000;
+  --focus: #000080;
+  --r-lg: 0px;
+  --r-md: 0px;
+  --font-ui: Tahoma, Verdana, Arial, sans-serif;
+  --font-display: Tahoma, Verdana, Arial, sans-serif;
+  --font-mono: Consolas, "Courier New", monospace;
+  --raised: inset 1px 1px #ffffff, inset -1px -1px #808080;
+  --sunken: inset 1px 1px #808080, inset -1px -1px #ffffff;
   color-scheme: light;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:where(:not([data-theme="light"])) {
-    --page: #0e1620;
-    --surface: #18232f;
-    --surface-2: #121c27;
-    --ink: #e8eef4;
-    --ink-2: #b7c3cf;
-    --ink-3: #8b99a8;
-    --line: #273544;
-    --line-strong: #34465a;
-    --grid: #233140;
-    --on-ink: #0e1620;
-    --s1: #3987e5;
-    --s2: #d95926;
-    --s3: #199e70;
-    --s4: #9085e9;
-    --good-text: #0ca30c;
-    --warning-text: #fab219;
-    --critical-text: #ef7b7b;
-    --focus: #6da7ec;
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --page: #0e1620;
-  --surface: #18232f;
-  --surface-2: #121c27;
-  --ink: #e8eef4;
-  --ink-2: #b7c3cf;
-  --ink-3: #8b99a8;
-  --line: #273544;
-  --line-strong: #34465a;
-  --grid: #233140;
-  --on-ink: #0e1620;
-  --s1: #3987e5;
-  --s2: #d95926;
-  --s3: #199e70;
-  --s4: #9085e9;
-  --good-text: #0ca30c;
-  --warning-text: #fab219;
-  --critical-text: #ef7b7b;
-  --focus: #6da7ec;
-  color-scheme: dark;
 }
