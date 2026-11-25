@@ -11,6 +11,7 @@
 \usepackage{graphicx}
 \usepackage{placeins}
 \usepackage{float}
+\usepackage{capt-of}
 
 % La plantilla cas-dc imprime siempre una linea "ORCID(s):" aunque no haya
 % ORCID. Mientras no se agreguen, se oculta esa linea vacia.
@@ -78,13 +79,10 @@ clasificación de tráfico de red
             \midrule
             C1 & Versión actual del código & v1.0 \\
             C2 & Enlace permanente al repositorio de esta versión & \url{https://github.com/CrisMC2/sdn-ddos-multiclass-detection} \\
-            C3 & Enlace permanente a la Reproducible Capsule & -- \\
-            C4 & Licencia legal del código & MIT \\
-            C5 & Sistema de control de versiones usado & git \\
-            C6 & Lenguajes, herramientas y servicios usados & Python, Bash, Mininet, Open vSwitch, Ryu, CICFlowMeter, Docker \\
-            C7 & Requisitos de compilación, entornos y dependencias & Docker, Ubuntu 24.04; Python 3.9.25 y 3.12.3 \\
-            C8 & Enlace a documentación para desarrolladores & Ver \texttt{README.md} del repositorio \\
-            C9 & Email de soporte & cristhianmartinezcasas@gmail.com \\
+            C3 & Licencia legal del código & MIT \\
+            C4 & Sistema de control de versiones usado & git \\
+            C5 & Lenguajes, herramientas y servicios usados & Python, Bash, Mininet, Open vSwitch, Ryu, CICFlowMeter, Docker \\
+            C6 & Requisitos de compilación, entornos y dependencias & Docker, Ubuntu 24.04; Python 3.9.25 y 3.12.3 \\
             \bottomrule
       \end{tabular*}
 \end{table*}
@@ -134,9 +132,16 @@ La topología reproduce un campus reducido: un módem de borde, un switch \emph{
 
 \begin{figure*}[t]
       \centering
-      \includegraphics[width=\textwidth]{figures/topologia-campus.png} \caption{Topología emulada. El C2 queda fuera del campus; las PCs infectadas atacan el portal mientras los alumnos continúan navegando.}
+      \includegraphics[width=\textwidth]{figures/topologia-campus.png} \caption{Topología real de la universidad pública. Para el estudio se considerarón los apartados "02 CENTRO DE DATOS" y "03 CAMPUS UNIVERSITARIO". El modelo considera la adición de PCs en cada pabellón las cuales pertenecen a alumnos que navegan de manera ordinaria (4 por pabellón), así como PCs  infectadas (2 por pabellón) que emulan ataques DDoS hacia el portal institucional.}
       
       \label{fig:topologia}
+\end{figure*}
+
+\begin{figure*}[t]
+      \centering
+      \includegraphics[width=\textwidth]{figures/Metodologia.png} \caption{Pipeline del experimento: del campus emulado a los dos datasets (por flujo y por ventana) y sus detectores. La etiqueta se asigna por emisor, no por archivo.}
+
+      \label{fig:metodologia}
 \end{figure*}
 
 \subsection{Generación de tráfico mixto}
@@ -154,15 +159,6 @@ Del tráfico capturado se derivan dos conjuntos complementarios. \emph{Por flujo
 
 \subsection{Protocolo de evaluación}
 Nunca se usa una partición aleatoria, porque ventanas y flujos vecinos están correlacionados. El modelo por flujo (\texttt{analisis\_completo.py}) se evalúa con un \emph{holdout} de laboratorio: entrenan cuatro áreas académicas (185\,127 flujos) y se prueba sobre una no vista, Ciencias Agrarias (45\,550 flujos). El detector por ventana se evalúa con validación cruzada \emph{leave-one-run-out} cuando hay dos o más ejecuciones. Para obtener media y desviación el banco ejecuta \texttt{run\_scenario.sh repeat N} o \texttt{dificil N}, que repiten los escenarios con semillas e intensidades distintas (registradas en el \texttt{meta.json} de cada ejecución). El clasificador por flujo usa cinco ejecuciones de 120~s por escenario; el detector por ventana usa 20 corridas que combinan cinco perfiles de intensidad (normal, bajo, sigiloso, pulsos y rampa), más cuatro ataques nunca vistos reservados solo para prueba.
-
-\begin{figure*}[t]
-      \centering
-      \includegraphics[width=\textwidth]{figures/Metodologia.png} \caption{Pipeline del experimento: del campus emulado a los dos datasets (por flujo y por ventana) y sus detectores. La etiqueta se asigna por emisor, no por archivo.}
-
-      \label{fig:metodologia}
-\end{figure*}
-
-\FloatBarrier
 
 
 \section{Requisitos de software y hardware}\label{sec:requirements}
@@ -210,32 +206,27 @@ SYN genera la mayor tasa, 715 paquetes/s, pero la sonda mantiene las 120 respues
 
 El F1 macro en Agrarias es \FmacroEs{} y el F1 binario \texttt{BENIGN} frente a ataque es 1{,}000. Entre las variables de mayor peso aparecen tanto estadísticas de CICFlowMeter (la media y la variabilidad de la longitud de paquete de ida y el tamaño medio del segmento de ida) como columnas derivadas de la telemetría OpenFlow cruzada por IP de origen (\texttt{sdn\_avg\_pkt\_bytes}, \texttt{sdn\_bytes}, \texttt{sdn\_pkts}). Esto es coherente con los escenarios --SYN genera segmentos pequeños y repetidos, HTTP intercambia solicitudes y respuestas completas, y Slowloris sostiene conexiones con poco tráfico-- y muestra que las señales SDN aportan también a nivel de flujo individual.
 
-\subsection{detección temprana por ventana de tiempo}
+\subsection{Detección temprana por ventana de tiempo}
 
 El dataset por ventana contiene 11\,698 ventanas de un segundo, distribuidas en 20 corridas que combinan cinco perfiles de intensidad (normal, bajo, sigiloso, pulsos y rampa). BENIGN reúne 5\,175 ventanas y cada vector de ataque entre 1\,573 y 1\,652 (Fig.~\ref{fig:ventanas_clase}). Para medir la generalización, el dataset reserva además cuatro ataques nunca vistos --\texttt{ackflood}, \texttt{udpflood}, \texttt{slowpost} y \texttt{multivector}-- que solo aparecen en prueba. Cada escenario dura 120~s por corrida.
 
-\begin{figure}[tbp]
-      \centering
-      \includegraphics[width=\columnwidth]{figures/ventanas_por_clase.png} \caption{distribución de ventanas por clase en el dataset de
-      detección temprana.}
-
+\begin{center}
+      \includegraphics[width=\columnwidth]{figures/ventanas_por_clase.png}
+      \captionof{figure}{Distribución de ventanas por clase en el dataset de detección temprana.}
       \label{fig:ventanas_clase}
-\end{figure}
+\end{center}
 
 La Fig.~\ref{fig:paquetes_escenario} muestra la distribución de la tasa de paquetes al portal por segundo en todas las ejecuciones. Synflood presenta la tasa más alta y consistente. Httpflood tiene una mediana menor pero con outliers extremos, reflejando la variabilidad en la intensidad entre ejecuciones. Slowloris es el más llamativo: su mediana es baja, similar al baseline, pero presenta outliers elevados; esto es coherente con su naturaleza de ataque de agotamiento de conexiones, node volumen. Esta dispersión confirma que la tasa de paquetes por sí sola no basta para distinguir todos los ataques, lo que motiva el uso de features combinadas de red, portal y telemetría SDN.
 
-\begin{figure}[tbp]
-      \centering
-      \includegraphics[width=\columnwidth]{figures/paquetes_escenario.png} \caption{Tasa de paquetes por segundo al portal por escenario. Slowloris y baseline pueden ser indistinguibles en volumen.}
-      
+\begin{center}
+      \includegraphics[width=\columnwidth]{figures/paquetes_escenario.png}
+      \captionof{figure}{Tasa de paquetes por segundo al portal por escenario. Slowloris y baseline pueden ser indistinguibles en volumen.}
       \label{fig:paquetes_escenario}
-\end{figure}
+\end{center}
 
-\begin{table}[H]
-      \centering
+\begin{center}
       \small
-      \caption{Comparación de modelos (leave-one-run-out, 20 folds).}
-
+      \captionof{table}{Comparación de modelos (leave-one-run-out, 20 folds).}
       \label{tbl:comparacion_modelos}
       \begin{tabular}{lcccc}
             \hline
@@ -246,14 +237,13 @@ La Fig.~\ref{fig:paquetes_escenario} muestra la distribución de la tasa de paqu
             Reg. logística     & 0{,}901 & 0{,}183 & 0{,}896 & 0{,}194 \\
             \hline
       \end{tabular}
-\end{table}
+\end{center}
 
 La Tabla~\ref{tbl:comparacion_modelos} compara los tres modelos evaluados. Los tres superan la hipótesis de trabajo (F1 macro $>$ 0{,}90), ahora sobre un dataset mucho más exigente que incluye perfiles de ataque sigilosos y de baja intensidad. El bosque aleatorio y el gradient boosting son equivalentes; la regresión logística, siendo un modelo lineal, muestra mayor varianza entre ejecuciones pero sigue siendo competitiva. Se selecciona el bosque aleatorio por su estabilidad y su capacidad de producir importancias de features interpretables.
 
-\begin{table}[H]
-      \centering
+\begin{center}
       \small
-      \caption{Ablación de features (bosque aleatorio).}
+      \captionof{table}{Ablación de features (bosque aleatorio).}
       \label{tbl:ablacion}
       \begin{tabular}{lcc}
             \hline
@@ -264,21 +254,19 @@ La Tabla~\ref{tbl:comparacion_modelos} compara los tres modelos evaluados. Los t
             Todas (28 features)     & 0{,}918 & 0{,}149 \\
             \hline
       \end{tabular}
-\end{table}
+\end{center}
 
 La Tabla~\ref{tbl:ablacion} y la Fig.~\ref{fig:ablacion} presentan la ablación de features. Las features de red solas alcanzan F1 = 0{,}826 ($\pm$0{,}201) y las SDN solas F1 = 0{,}810 ($\pm$0{,}224); ambas con alta variabilidad entre folds, porque los perfiles sigilosos son difíciles de separar con un solo grupo de señales. La combinación de ambos grupos eleva el F1 a 0{,}918 ($\pm$0{,}149). La telemetría OpenFlow aporta $+$0{,}092 de F1 macro sobre usar solo contadores de red, mostrando que las señales del controlador SDN tienen un rol complementario en la detección.
 
-\begin{figure}[tbp]
-      \centering
-      \includegraphics[width=\columnwidth]{figures/ablacion_features.png} \caption{ablación de features: red, SDN y todas. Las barras de error indican la desviación estándar entre folds.}
-      
+\begin{center}
+      \includegraphics[width=\columnwidth]{figures/ablacion_features.png}
+      \captionof{figure}{ablación de features: red, SDN y todas. Las barras de error indican la desviación estándar entre folds.}
       \label{fig:ablacion}
-\end{figure}
+\end{center}
 
-\begin{table}[H]
-      \centering
+\begin{center}
       \small
-      \caption{Recall por clase del bosque aleatorio (todas las features).}
+      \captionof{table}{Recall por clase del bosque aleatorio (todas las features).}
       \label{tbl:recall}
       \begin{tabular}{lcc}
             \hline
@@ -291,29 +279,26 @@ La Tabla~\ref{tbl:ablacion} y la Fig.~\ref{fig:ablacion} presentan la ablación 
             synflood   & 0{,}872 & 0{,}296 \\
             \hline
       \end{tabular}
-\end{table}
+\end{center}
 
 La Tabla~\ref{tbl:recall} detalla el recall por clase. Sobre tráfico benigno los falsos positivos quedan en 2{,}5\%~$\pm$~6{,}7\%. Los recalls más altos son icmpflood (0{,}984) y slowloris (0{,}966); los dos floods con recall más bajo son httpflood (0{,}856) y synflood (0{,}872), porque bajo los perfiles sigilosos su firma se acerca al tráfico benigno. El tiempo hasta la primera alarma es 0{,}2~s para icmpflood, 0{,}6~s para slowloris, 1{,}4~s para synflood y 4{,}3~s para httpflood: aun en los perfiles difíciles el modelo reacciona en segundos.
 
 La Fig.~\ref{fig:confusion} muestra la matriz de confusión acumulada sobre los 20 folds. La diagonal domina: 706 errores sobre 11\,698 ventanas (6{,}0\%), concentrados en ventanas de synflood y httpflood marcadas como benignas durante los perfiles sigilosos.
 
-\begin{figure}[tbp]
-      \centering
-      \includegraphics[width=\columnwidth]{figures/matriz_confusion.png} \caption{Matriz de confusión acumulada sobre los 20 folds. Los errores se concentran en ventanas de synflood y httpflood clasificadas como BENIGN bajo los perfiles sigilosos y de baja intensidad.}
-
+\begin{center}
+      \includegraphics[width=\columnwidth]{figures/matriz_confusion.png}
+      \captionof{figure}{Matriz de confusión acumulada sobre los 20 folds. Los errores se concentran en ventanas de synflood y httpflood clasificadas como BENIGN bajo los perfiles sigilosos y de baja intensidad.}
       \label{fig:confusion}
-\end{figure}
+\end{center}
 
 La Fig.~\ref{fig:features} presenta las diez features con mayor peso en el bosque. Las dos más discriminantes son \texttt{rx\_pps\_roll3} (media móvil de la tasa de paquetes al portal) y \texttt{conns\_roll3} (media móvil de conexiones), seguidas de métricas de servidor (\texttt{server\_rx\_pps}, \texttt{server\_conns}). A partir de la octava posición aparecen features SDN (\texttt{sdn\_frac\_icmp\_roll}, \texttt{sdn\_mean\_pkts\_per\_flow}, \texttt{sdn\_pkts\_icmp}), confirmando el aporte complementario de la telemetría OpenFlow.
 
-\begin{figure}[tbp]
-      \centering
-      \includegraphics[width=\columnwidth]{figures/features_importantes.png} \caption{Diez features con mayor importancia en el bosque aleatorio.}
-
+\begin{center}
+      \includegraphics[width=\columnwidth]{figures/features_importantes.png}
+      \captionof{figure}{Diez features con mayor importancia en el bosque aleatorio.}
       \label{fig:features}
-\end{figure}
+\end{center}
 
-\FloatBarrier
 \subsection{Consumo del banco}
 La CPU media del contenedor fue 40\% en baseline, 36\% en SYN, 71\% en HTTP, 313\% en Slowloris y 35\% en ICMP; en Docker, 100\% equivale aproximadamente a un núcleo. Slowloris ocupó cerca de tres de los seis núcleos asignados, mientras la memoria máxima observada se mantuvo en torno a 230~MiB (en HTTP flood). Estos valores miden todo el banco (Mininet, OVS, Ryu, portal y generadores), no solo
 la víctima.

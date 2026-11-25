@@ -1,0 +1,59 @@
+% \newpage
+% \label{table}
+\begin{sidewaystable}[htb]
+\centering
+\caption{List of LLM-based Single-Agent Systems. {The Evaluation column summarizes evidence forms reported in the cited works and should not be read as a cross-paper performance comparison.}}
+\label{tab:single-agent}
+\renewcommand\tabcolsep{1pt}
+\renewcommand\arraystretch{1.2}
+\scriptsize
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{rlllllllllll}
+\toprule
+ID&Name&Field&Training&Environment&Data&Evaluation&Modality&Feedback&Tool&Planning&Review\\
+\midrule
+
+
+
+1&Out of One\cite{argyle2023out}&Sociology&No&Text&No&human comparison&Text&Not reported&Not reported&Not reported&Not reported\\
+2&Horton Economic Agents\cite{horton2023large}&Sociology&No&Text&No&human comparison&Text&Not reported&Not reported&Not reported&Not reported\\
+3&Social Simulacra\cite{park2022social}&Sociology&No&Text&No&human comparison&Text&Not reported&Not reported&Not reported&Not reported\\
+4&Social AI School\cite{kovavc2023socialai}&Sociology&Yes&Simulation environment&Yes&reported comparison&Image to text&self-feedback&Not reported&Not reported&RL\\
+5&$S^3$\cite{gao2023s}&Sociology&No&Text&No&human comparison&Text&environmental&Not reported&Not reported&Not reported\\
+6&Social Network Simulation\cite{li2023you}&Sociology&No&Text&No&Not reported&Text&Not reported&Yes&Not reported&Not reported\\
+7&Quantifying GPT Models\cite{li2023quantifying}&Sociology&No&Text&Not reported&human comparison&Text&Not reported&Not reported&Not reported&Not reported\\
+8&ChatLaw\cite{cui2023chatlaw}&Law&Yes&Text&Yes&{reported model comparison}&Text&Not reported&Not reported&Not reported&Not reported\\
+9&Blind Judgement\cite{hamilton2023blind}&Law&Yes&Text&Yes&{reported model comparison}&Text&Not reported&Not reported&Not reported&Not reported\\
+10&ChemCrow\cite{bran2023chemcrow}&Chemistry&Yes&Experimental environment&Yes&{reported LLM/expert assessment}&Multimodal&self-feedback&Yes&ICL&ICL\\
+11&ChatMOF\cite{kang2023chatmof}&Material Science&No&Experimental environment&Yes&{reported success rate}&Multimodal&self-feedback&Yes&ICL&ICL\\
+12&Mathagent\cite{swan2023math}&Mathematics&Yes&Text&Yes&Not reported&Text&Not reported&Not reported&Not reported&Not reported\\
+13&Drori et al. Solver\cite{drori2022neural}&Mathematics&Yes&Text&Yes&{reported model comparison}&Text&Not reported&Not reported&Not reported&Not reported\\
+14&IGLU\cite{mehta2023improving}&Collaborative&Yes&IGLU competition&No&{reported model comparison}&Text&human feedback&Not reported&Not reported&RL\\
+15&GPT-Engineer\cite{gptengineer2023}&Code&No&Code Environment&No&Not reported&Text&self-feedback&Yes&ICL&ICL\\
+16&SmolModels\cite{smoldev2023}&Code&No&Code Environment&No&Not reported&Text&self-feedback&Yes&ICL&ICL\\
+17&DemoGPT\cite{demogpt2023}&Code&{Yes}&Code Environment&{Yes}&Not reported&Text&self-feedback&Yes&ICL&ICL\\
+18&IELLM\cite{ogundare2023industrial}&Industrial Engineering&No&Not specified&Not reported&Not reported&Not reported&No&No&No&No\\
+19&DialogueShaping\cite{zhou2023dialogue}&Game&No&Game environment&No&{reported agent comparison}&Text&environmental&No&ICL&RL\\
+20&DECKARD\cite{nottingham2023embodied}&Game&No&Game environment&No&reported ablation&Text&environmental&No&Multi-stage&RL\\
+21&TaPA\cite{wu2023embodied}&Embodied agents&No&Visual perception environment&No&{reported model comparison}&Visual&environmental&No&ICL&ICL\\
+22&Voyager\cite{wang2023voyager}&Game&No&Minecraft game&No&{reported model comparison}&Text&environmental&No&ICL&ICL\\
+23&GITM\cite{zhu2023ghost}&Game&No&Minecraft game&No&{reported model comparison}&Text&environmental&No&ICL&ICL\\
+24&LLM4RL\cite{huenabling}&Embodied agents&Yes&Different embodied environments&No&{reported baseline comparison}&Multimodal&environmental&No&Not reported&RL\\
+25&PET\cite{wu2023plan}&Embodied agents&Yes&ALFWorld interactive environment&Yes&{reported model comparison}&Text&self-feedback&No&Multi-stage&Not reported\\
+26&REMEMBERER\cite{zhang2023large}&Not specified&No&Text&No&{reported model comparison}&Text&No&Yes&Not reported&RL\\
+27&UnifiedAgent\cite{di2023towards}&Embodied agents&Yes&Robot simulation environment&Yes&reported ablation&Multimodal&Not reported&Not reported&Not reported&RL\\
+28&SayCan\cite{saycan2022arxiv}&Embodied agents&No&Robot simulation environment&Yes&reported ablation&Multimodal&No&Not reported&External method&RL\\
+29&AIlegion\cite{ailegion2023}&Universal&No&{Not specified}&No&Not reported&Multimodal&Not reported&Yes&ICL&ICL\\
+30&AGiXT\cite{agixt2023}&Universal&No&{Not specified}&No&Not reported&Multimodal&Not reported&Yes&ICL&ICL\\
+31&BabyAGI\cite{babyagi2023}&Embodied agents&No&{Not specified}&No&Not reported&Multimodal&Not reported&Yes&ICL&ICL\\
+32&LoopGPT\cite{loopgpt2023}&Universal&Not reported&Not specified&Not reported&Not reported&Multimodal&Not reported&Yes&ICL&ICL\\
+33&GPT-Researcher\cite{gptresearcher2023}&Research&Not reported&Not specified&Not reported&Not reported&Multimodal&No&Yes&External method&Not reported\\
+34&SuperAGI\cite{superagi2023}&Universal&Not reported&Not specified&Not reported&Not reported&Multimodal&Not reported&Yes&ICL&ICL\\
+
+\bottomrule
+\end{tabular}
+}
+\vspace{2pt}
+\footnotesize{\emph{Note:} The table reports attributes described in the cited papers. Evaluation entries denote evaluation forms reported in the original works. ICL denotes in-context learning; RL denotes reinforcement learning.}
+
+\end{sidewaystable}

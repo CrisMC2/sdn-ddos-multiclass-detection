@@ -1,0 +1,10 @@
+Campus-DDoS-SDN is a Docker testbed that generates and classifies
+four DDoS attacks against the portal of a campus emulated with
+Mininet and Ryu. Students keep browsing during the attack, and each
+flow is labelled by source IP rather than by capture file. A random
+forest trained without IP addresses and tested on the Ciencias
+Agrarias laboratory, which was held out of training, reaches a macro
+F1 of \Fmacro.
+\input{frase_en.tex}
+ICMP is not claimed as a settled class: the Agrarias test contains
+24 flows.

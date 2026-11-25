@@ -1,0 +1,37 @@
+% \newpage
+% \label{table}
+\begin{sidewaystable}[htb]
+% \begin{table}[h]
+
+
+\centering
+\caption{List of LLM-based Multi-Agent Systems. {The Evaluation column summarizes evidence forms reported in the cited works and should not be read as a cross-paper performance comparison.}}
+\label{tab:multi-agent}
+\renewcommand\tabcolsep{1pt}
+\renewcommand\arraystretch{1.2}
+\scriptsize
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{rllllllllllll}
+\toprule
+ID&Name&Field&Training&Environment&Data&Evaluation&Modality&Tool&Planning&Review&{Relationship}&{Planning Type}\\
+\midrule
+
+1&Generative Agents\cite{park2023generative}&Sociology&No&Game text&No&Not reported&Text&No&ICL&reflection&Cooperative&DPDE\\
+2&Epidemic Modeling Agents\cite{williams2023epidemic}&Epidemiology research&No&Text&Not reported&Not reported&Text&Not reported&Not reported&Not reported&Cooperative&Not specified\\
+3&Emergent Autonomous Scientist\cite{boiko2023emergent}&Chemistry&No&Experimental environment&No&Not reported&Multimodal&Yes&ICL&ICL&Hierarchical&DPDE\\
+4&ChatDev\cite{qian2023communicative}&Software Development&No&Software Development&No&{reported dataset evaluation}&Text&Yes&ICL&ICL&Cooperative&DPDE\\
+5&MetaGPT\cite{hong2023metagpt}&Code&{Yes}&Code Environment&{Yes}&{reported model comparison}&Multimodal&{Yes}&ICL&ICL&Cooperative&DPDE\\
+6&SCG\cite{dong2023self}&Code&No&Code Environment&No&{reported model comparison}&Text&Yes&ICL&ICL&Cooperative&DPDE\\
+7&GPT4IA\cite{xia2023towards}&Industrial environment&Yes&Engineering environment&No&Not reported&Multimodal&Yes&ICL&ICL&Cooperative&DPDE\\
+8&Planner-Actor-Reporter\cite{dasgupta2023collaborating}&Embodied environments&{Yes}&A 2D partially observable grid-world&No&{reported task success rate}&Image plus text&No&ICL&ICL&Cooperative&DPDE\\
+9&ProAgent\cite{zhang2023proagent}&Universal&No&Text&No&{reported model comparison}&Multimodal&No&Not reported&Not reported&Hierarchical&DPDE\\
+10&SAMA\cite{li2023semantically}&Game&No&Game&No&{reported model comparison}&Game text&No&ICL&ICL and RL&Cooperative&CPDE\\
+11&Co-LLM-Agents\cite{zhang2023building}&Game&No&Game&No&{reported model comparison}&Game text&No&Not reported&Not reported&Cooperative&DPDE\\
+
+\bottomrule
+\end{tabular}
+}
+\vspace{2pt}
+\footnotesize{\emph{Note:} The table reports attributes described in the cited papers. Evaluation entries denote reported evaluation forms in the original works and are not directly comparable across rows. Planning type is assigned from an explicit central joint planner (CPDE) or local agent planning with communication/shared memory (DPDE); hierarchical relationships alone do not imply CPDE. Uncertain cases are marked as Not specified. ICL denotes in-context learning; RL denotes reinforcement learning.}
+\end{sidewaystable}
+% \end{sidewaystable}
