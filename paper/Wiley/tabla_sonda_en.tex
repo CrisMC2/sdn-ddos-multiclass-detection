@@ -4,15 +4,15 @@
 \caption{Portal probe. Each scenario lasts 120~s.}
 \label{tbl:sonda}
 \setlength{\tabcolsep}{4pt}
-\begin{tabular}{lrrrr}
-\hline
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
 Scenario & HTTP 200 & Failures & Latency (ms) & Packets/s \\
-\hline
+\midrule
 baseline & 120 & 0 & 407 & 111 \\
 synflood & 120 & 0 & 404 & 466 \\
 httpflood & 120 & 0 & 564 & 386 \\
 slowloris & 1 & 117 & 403 & 86 \\
 icmpflood & 120 & 0 & 404 & 271 \\
-\hline
+\bottomrule
 \end{tabular}
 \end{table}

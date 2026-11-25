@@ -1,5 +1,6 @@
-\documentclass[ASNA]{USG} %twocolumn
+\documentclass[ASNA,twocolumn]{USG}
 \usepackage{anyfontsize} %
+\usepackage{enumitem}
 
 \usepackage{colortbl}   % For coloring table lines
 \usepackage{xcolor}     % For color definitions
@@ -34,7 +35,7 @@
 \title{Campus-DDoS-SDN: Multi-vector DDoS detection in software-defined campus networks}
 %\subtitle{Subtitle}
 \transtitle{Campus-DDoS-SDN: Multi-vector DDoS detection in software-defined campus networks}
-\subtranstitle{trans-subtitle}
+%\subtranstitle{}
 \author[1]{Cristhian M. Casas}[https://orcid.org/0009-0000-9070-9010][\linkedin{https://www.linkedin.com}]
 \author[2]{Alessandro P. Martínez}[][\linkedin{https://www.linkedin.com}]
 \author[3]{Anna C. Leiva}[https://orcid.org/0009-0003-2087-2148][\linkedin{https://www.linkedin.com}]
@@ -85,7 +86,7 @@
 
 %\author[14]{Rachael V. Walker}[https://orcid.org/0000-0001-7037-2721]
 
-\authormark{Martínez \textsc{et al.}}
+\authormark{Casas \textsc{et al.}}
 \titlemark{Campus-DDoS-SDN: A Python-based testbed for multi-vector DDoS attack detection in software-defined campus networks}
 
 \address[1]{\orgdiv{Facultad de Ingeniería de Sistemas, }\orgname{Universidad Nacional del Centro del Perú, }%
@@ -103,7 +104,9 @@
 \address[5]{\orgdiv{Facultad de Ingeniería de Sistemas, }\orgname{Universidad Nacional del Centro del Perú, }%
 \orgaddress{\state{Huancayo, }\country{Perú}}}
 
-% Falta
+\address[6]{\orgdiv{Facultad de Ingeniería de Sistemas, }\orgname{Universidad Nacional del Centro del Perú, }%
+\orgaddress{\state{Huancayo, }\country{Perú}}}
+
 \corres{Cristhian M. Casas  (\email{cristhianmartinezcasas@gmail.com}) ~|~ Ricardo L. Lozano (\email{llanoslozano2005@gmail.com})}
 
 \editor{\textbf{Academic Editor:}  ~|~ \textbf{Guest Editor:} }
@@ -120,27 +123,31 @@
 
 \input{numeros.tex}
 
-\abstract[ABSTRACT]{Campus-DDoS-SDN is a Docker testbed that generates and classifies four DDoS attacks against the portal of a campus emulated with Mininet and Ryu. Students keep browsing during the attack, and each flow is labelled by source IP rather than by capture file. A random forest trained without IP addresses and tested on the Ciencias Agrarias laboratory, which was held out of training, reaches a macro F1 of \Fmacro. On the portal probe, httpflood: the page slows down; packet rate rises; icmpflood: packet rate at the portal rises; slowloris: the page stops opening; synflood: packet rate at the portal rises. ICMP is not claimed as a settled class: the Agrarias test contains 24 flows.}
+\abstract[ABSTRACT]{Campus-DDoS-SDN is a Docker testbed that generates and classifies four DDoS attacks against the portal of a campus emulated with Mininet and Ryu. Students keep browsing during the attack, and each flow is labelled by source IP rather than by capture file. A random forest trained without IP addresses and tested on the Ciencias Agrarias laboratory, which was held out of training, reaches a macro F1 of \Fmacro. On the portal probe, the HTTP flood slows the page down, the SYN and ICMP floods raise the packet rate at the portal without affecting availability, and Slowloris stops the page from opening. ICMP is not claimed as a settled class: the Agrarias test contains 24 flows.}
 
- \transabstract[transABSTRACT]{Campus-DDoS-SDN is a Docker testbed that generates and classifies four DDoS attacks against the portal of a campus emulated with Mininet and Ryu. Students keep browsing during the attack, and each flow is labelled by source IP rather than by capture file. A random forest trained without IP addresses and tested on the Ciencias Agrarias laboratory, which was held out of training, reaches a macro F1 of \Fmacro. On the portal probe, httpflood: the page slows down; packet rate rises; icmpflood: packet rate at the portal rises; slowloris: the page stops opening; synflood: packet rate at the portal rises. ICMP is not claimed as a settled class: the Agrarias test contains 24 flows.}
+ \transabstract[transABSTRACT]{Campus-DDoS-SDN is a Docker testbed that generates and classifies four DDoS attacks against the portal of a campus emulated with Mininet and Ryu. Students keep browsing during the attack, and each flow is labelled by source IP rather than by capture file. A random forest trained without IP addresses and tested on the Ciencias Agrarias laboratory, which was held out of training, reaches a macro F1 of \Fmacro. On the portal probe, the HTTP flood slows the page down, the SYN and ICMP floods raise the packet rate at the portal without affecting availability, and Slowloris stops the page from opening. ICMP is not claimed as a settled class: the Agrarias test contains 24 flows.}
 
-\abbr{CICFlowMeter, OpenFlow, SDN, DDoS, HTTP, ICMP, SYN, Ryu, Mininet, ML.}
-
-
+%\abbr{CICFlowMeter, OpenFlow, SDN, DDoS, HTTP, ICMP, SYN, Ryu, Mininet, ML.}  % overlaps body text in two-column layout
 
 
-\contributed{All authors contributed to the design, implementation, validation and writing of the manuscript.}
 
-  \dedicated{Dedicated to reproducible SDN research and applied network security education.}
+
+% Moved to the Acknowledgements section: in the two-column layout these
+% footer boxes overlap the body text on page 1.
+%\contributed{All authors contributed to the design, implementation, validation and writing of the manuscript.}
+%\dedicated{Dedicated to reproducible SDN research and applied network security education.}
 
 \copyright{This is an open access article under the terms of the \href{Creative Commons Attribution-NonCommercial}{Creative Commons Attribution-NonCommercial} License, which permits use, distribution and reproduction in any medium, provided the
 original~work~is~properly cited and is not used for commercial purposes.
 \\[5pt]
-  \textcopyright~2026 The Author(s) \textit{Journal of Computer Networks and Communications} published by Wiley Periodicals LLC on behalf of American Institute of Chemical Engineers.}
+  \textcopyright~2026 The Author(s) \textit{Journal of Computer Networks and Communications} published by Wiley Periodicals LLC.}
 
 %\openaccessstatement
 
 \maketitle
+% In two-column mode \twocolumn[\@maketitle] resets the column height, so the
+% class's own \enlargethispage is lost; re-apply it to keep page-1 text clear of the footer.
+\makeatletter\foot@measure\enlargethispage{-\foot@raise}\makeatother
 %\afterpage{\aftergroup\restoregeometry}
 
 %\onecolumn
@@ -173,7 +180,7 @@ The main contributions of this work are:
         reproducibility limitation of real-traffic-based SDN
         datasets.
   \item A random-forest classifier trained without IP addresses that
-        reaches a macro F1 of \Fmacro on the held-out Ciencias
+        reaches a macro F1 of \Fmacro\ on the held-out Ciencias
         Agrarias laboratory, plus a pipeline ready to mix authorized
         Wireshark captures of benign student traffic with
         simulation-only attacks.
@@ -200,7 +207,7 @@ High accuracy on one attack type and separated captures does not show that a det
 \section{Software description}\label{sec:description}
 
   \subsection{Architecture overview}
-  The topology is a reduced campus: an edge modem, a core switch, a DMZ holding the portal, and one laboratory per academic area. Each laboratory has students and compromised hosts. Switches are Open vSwitch in userspace, controlled by Ryu. Students keep requesting portal pages during an attack. The operator's browser, at \texttt{http://127.0.0.1:8080/}, joins as one more benign client (\texttt{10.9.0.1}). The attack does not leave the container.
+  The topology is a reduced campus: an edge modem, a core switch, a DMZ holding the portal, and one laboratory per academic area. Each laboratory has students and compromised hosts (Fig.~\ref{fig:topologia}). Switches are Open vSwitch in userspace, controlled by Ryu. Students keep requesting portal pages during an attack. The operator's browser, at \texttt{http://127.0.0.1:8080/}, joins as one more benign client (\texttt{10.9.0.1}). The attack does not leave the container.
 
     \begin{figure*}[t]
       \centering
@@ -211,20 +218,8 @@ High accuracy on one attack type and separated captures does not show that a det
       \label{fig:topologia}
     \end{figure*}
 
-  \subsection{Software functionalities}
-    \texttt{scripts/docker/run\_scenario.sh} runs one scenario (\texttt{baseline}, \texttt{synflood}, \texttt{httpflood}, \texttt{slowloris}, \texttt{icmpflood}) or all five; its \texttt{repeat N} mode runs N independent repetitions, each with a    different seed and sampled attack intensities, so results can be reported as mean~$\pm$~standard deviation instead of from a single run. \texttt{scripts/mininet/flow\_monitor\_13.py} is the Ryu controller: it learns like an L2 switch but installs IP-based flows and periodically polls OpenFlow flow statistics, writing them per run. \texttt{scripts/mininet/capture\_campus.py} stores the pcap and the student probe. \texttt{scripts/mininet/pcap\_to\_csv.py} labels each flow by source IP (a student stays \texttt{BENIGN} and a compromised host takes the attack name) and merges the controller telemetry by source IP. \texttt{scripts/mininet/build\_windows.py} builds a time-window dataset (one row per second) from the portal counters and the aggregated SDN telemetry. \texttt{notebooks/analisis\_completo.py} trains the per-flow forest without IP addresses and tests it on Ciencias Agrarias, while \texttt{notebooks/deteccion\_ventanas.py} evaluates the per-window detector with leave-one-run-out cross-validation and a feature-group ablation.\texttt{scripts/docker/preparar\_hibrido.sh} anonymizes authorized student Wireshark captures, mixes them with simulation attacks, and writes \texttt{notebooks/resultados/informe\_hibrido.txt}. The attack is never run against the real campus network.
-
-
-  \subsection{Experimental design and variables}
-    Five independent scenarios are run: one baseline and four attacks. Each lasts 120~s, starts from a clean topology and uses 20 students, 10 compromised hosts, one portal, one C2, one modem and seven switches. The scenario is the independent variable. Responses are HTTP availability, mean and 95th-percentile latency, packets per second at the portal, maximum core flows, and container CPU, memory and network use. The model receives bidirectional flow statistics from CICFlowMeter and the ICMP aggregator.
-
-  \subsection{From pcap to the model}
-    The run in this article comes from one command, \texttt{run\_scenario.sh all 120}. Inside the container, Open vSwitch, Ryu and the topology start together. Each scenario lasts 120~s and leaves three artifacts: the pcap on the portal interface, the student probe (HTTP status, latency, packets per second), and container use sampled with \texttt{docker stats}.
-
-    \texttt{pcap\_to\_csv.py} splits each pcap in two. TCP and UDP go through CICFlowMeter. ICMP is outside that filter, so a custom aggregator closes a flow after 10~s. Without that cut, each compromised host would leave one long flow and the class would collapse to a handful of rows. The label does not come from the file name. The JSON beside the pcap lists the compromised addresses. If the source is one of those addresses and the scenario is not the baseline, the flow takes the attack name. Students, the portal and the whole baseline stay \texttt{BENIGN}. This run has 40{,}877 flows. The baseline contributes 2{,}671, all benign. During an attack the student flows stay inside the same CSV.
-
-    Before training, source IP, destination IP, both ports and the timestamp are dropped. An infinity or a missing value becomes zero, and any column that does not vary in the training set is removed. If the IP stayed, the forest would memorize which machine is compromised rather than how the flow behaves. The model is a forest of 200 trees with class weights, because the SYN flood contributes 23{,}539 flows and would otherwise dominate. The split is not random: Health, Engineerings, Empresariales and Sociales train it (32{,}784 flows) and only Agrarias is tested (8{,}091).
-
+    % Declared here (page 3) so that LaTeX can place it at the top of page 4,
+    % next to Section 3.4; a figure* always lands on a later page than its source.
     \begin{figure*}[t]
       \centering
       \includegraphics[width=\textwidth]{images/metodologia-ddos-uncp.png}
@@ -233,6 +228,20 @@ High accuracy on one attack type and separated captures does not show that a det
       The label comes from the sender, not the capture file.}
       \label{fig:method}
     \end{figure*}
+
+  \subsection{Software functionalities}
+    \texttt{scripts/docker/run\_scenario.sh} runs one scenario (\texttt{baseline}, \texttt{synflood}, \texttt{httpflood}, \texttt{slowloris}, \texttt{icmpflood}) or all five; its \texttt{repeat N} mode runs N independent repetitions, each with a    different seed and sampled attack intensities, so results can be reported as mean~$\pm$~standard deviation instead of from a single run. \texttt{scripts/mininet/flow\_monitor\_13.py} is the Ryu controller: it learns like an L2 switch but installs IP-based flows and periodically polls OpenFlow flow statistics, writing them per run. \texttt{scripts/mininet/capture\_campus.py} stores the pcap and the student probe. \texttt{scripts/mininet/pcap\_to\_csv.py} labels each flow by source IP (a student stays \texttt{BENIGN} and a compromised host takes the attack name) and merges the controller telemetry by source IP. \texttt{scripts/mininet/build\_windows.py} builds a time-window dataset (one row per second) from the portal counters and the aggregated SDN telemetry. \texttt{notebooks/analisis\_completo.py} trains the per-flow forest without IP addresses and tests it on Ciencias Agrarias, while \texttt{notebooks/deteccion\_ventanas.py} evaluates the per-window detector with leave-one-run-out cross-validation and a feature-group ablation.\texttt{scripts/docker/preparar\_hibrido.sh} anonymizes authorized student Wireshark captures, mixes them with simulation attacks, and writes \texttt{notebooks/resultados/informe\_hibrido.txt}. The attack is never run against the real campus network.
+
+
+  \subsection{Experimental design and variables}
+    Five independent scenarios are run: one baseline and four attacks. Each lasts 120~s, starts from a clean topology and uses 20 students, 10 compromised hosts, one portal, one C2, one modem and seven switches. The scenario is the independent variable. Responses are HTTP availability, mean and 95th-percentile latency, packets per second at the portal, maximum core flows, and container CPU, memory and network use. The model receives bidirectional flow statistics from CICFlowMeter and the ICMP aggregator.
+
+  \subsection{From pcap to the model}
+    The run in this article comes from one command, \texttt{run\_scenario.sh all 120}; the full pipeline is shown in Fig.~\ref{fig:method}. Inside the container, Open vSwitch, Ryu and the topology start together. Each scenario lasts 120~s and leaves three artifacts: the pcap on the portal interface, the student probe (HTTP status, latency, packets per second), and container use sampled with \texttt{docker stats}.
+
+    \texttt{pcap\_to\_csv.py} splits each pcap in two. TCP and UDP go through CICFlowMeter. ICMP is outside that filter, so a custom aggregator closes a flow after 10~s. Without that cut, each compromised host would leave one long flow and the class would collapse to a handful of rows. The label does not come from the file name. The JSON beside the pcap lists the compromised addresses. If the source is one of those addresses and the scenario is not the baseline, the flow takes the attack name. Students, the portal and the whole baseline stay \texttt{BENIGN}. This run has 40{,}877 flows. The baseline contributes 2{,}671, all benign. During an attack the student flows stay inside the same CSV.
+
+    Before training, source IP, destination IP, both ports and the timestamp are dropped. An infinity or a missing value becomes zero, and any column that does not vary in the training set is removed. If the IP stayed, the forest would memorize which machine is compromised rather than how the flow behaves. The model is a forest of 200 trees with class weights, because the SYN flood contributes 23{,}539 flows and would otherwise dominate. The split is not random: Health, Engineerings, Empresariales and Sociales train it (32{,}784 flows) and only Agrarias is tested (8{,}091).
 
 \section{Results and impact overview}\label{sec:impact}
 The single-vector reference dataset cannot be repeated, because its benign traffic comes from the live internet \citep{kumar2026icmpfloodsdn}. This testbed can be repeated, mixes student and attack traffic in the same capture, and already yields a classifier. On Ciencias Agrarias, a laboratory excluded from training, macro F1 is \Fmacro. The probe states what the page feels, not only which label was assigned. With institutional authorization, the same pipeline admits real benign traffic (Wireshark) while keeping the attack inside the container. The probe from that run is in Table~\ref{tbl:sonda}: only Slowloris takes the portal down.
@@ -245,7 +254,7 @@ The single-vector reference dataset cannot be repeated, because its benign traff
   settled class. Fig.~\ref{fig:flows} also shows that attack captures
   retain benign student flows.
 
-  \begin{figure}[t]
+  \begin{figure}[!htbp]
   \centering
   \includegraphics[width=\columnwidth]{images/paquetes_escenario.png}
 
@@ -262,9 +271,9 @@ The single-vector reference dataset cannot be repeated, because its benign traff
   \subsection{Classifier performance}
   \input{tabla_resultados_en.tex}
 
-  Macro F1 on Agrarias is \Fmacro and binary benign-versus-attack F1 is 0.970. The most important features are forward average segment size, forward packet-length mean and maximum, forward bytes and packet-size variability. This is consistent with the scenarios: SYN repeatedly sends small segments, HTTP exchanges complete requests and responses, and Slowloris holds connections with little traffic.
+  Per-class results are in Table~\ref{tbl:deteccion}. Macro F1 on Agrarias is \Fmacro\ and binary benign-versus-attack F1 is 0.970. The most important features (Fig.~\ref{fig:importance}) are forward average segment size, forward packet-length mean and maximum, forward bytes and packet-size variability. This is consistent with the scenarios: SYN repeatedly sends small segments, HTTP exchanges complete requests and responses, and Slowloris holds connections with little traffic.
 
-  \begin{figure}[t]
+  \begin{figure}[!htbp]
     \centering
     \includegraphics[width=\columnwidth]{images/features_importantes.png}
 
@@ -274,9 +283,9 @@ The single-vector reference dataset cannot be repeated, because its benign traff
 
 
   \subsection{Testbed consumption}
-  Mean container CPU was 23\% for baseline, 26\% for SYN, 50\% for HTTP, 523\% for Slowloris and 26\% for ICMP; in Docker, 100\% corresponds approximately to one core. Slowloris occupied about five of the six assigned cores, while observed peak memory remained below 200~MiB. These values cover the whole testbed, not only the victim.
+  Mean container CPU was 23\% for baseline, 26\% for SYN, 50\% for HTTP, 523\% for Slowloris and 26\% for ICMP; in Docker, 100\% corresponds approximately to one core. Slowloris occupied about five of the six assigned cores (Fig.~\ref{fig:cpu}), while observed peak memory remained below 200~MiB. These values cover the whole testbed, not only the victim.
 
-  \begin{figure}[t]
+  \begin{figure}[!htbp]
     \centering
     \includegraphics[width=\columnwidth]{images/ventanas_por_clase.png}
 
@@ -301,7 +310,7 @@ The single-vector reference dataset cannot be repeated, because its benign traff
 
   \section{Software and hardware requirements}\label{sec:requirements}
 
-  The testbed runs in an Ubuntu 24.04 container. The versions in the table were read inside the \texttt{ataque-sdn} image. The model was trained with Python 3.12.3, scikit-learn 1.9.1 and pandas 3.0.6. Ryu uses Python 3.9.25.
+  The testbed runs in an Ubuntu 24.04 container. The versions in Table~\ref{tbl:testbed} were read inside the \texttt{ataque-sdn} image. The model was trained with Python 3.12.3, scikit-learn 1.9.1 and pandas 3.0.6. Ryu uses Python 3.9.25.
 
   \begin{table}[t]
     \footnotesize
@@ -329,7 +338,7 @@ container is given 6 CPUs and 8~GB, and Ubuntu 24.04 runs inside it.
 Open vSwitch runs in userspace (\texttt{datapath netdev}).
 
 \section*{Acknowledgements}
-The authors thank the Universidad Nacional del Centro del Per\'u.
+The authors thank the Universidad Nacional del Centro del Per\'u. All authors contributed to the design, implementation, validation and writing of the manuscript. Dedicated to reproducible SDN research and applied network security education.
 
 \bibliography{references.bib}
 
