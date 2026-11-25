@@ -1,6 +1,7 @@
 \documentclass[ASNA,twocolumn]{USG}
 \usepackage{anyfontsize} %
 \usepackage{enumitem}
+\usepackage{array}
 
 \usepackage{colortbl}   % For coloring table lines
 \usepackage{xcolor}     % For color definitions
@@ -132,7 +133,7 @@
 
 
 
-% Moved to the Acknowledgements section: in the two-column layout these
+% Moved to the back matter (Author Contributions / Acknowledgments): in the two-column layout these
 % footer boxes overlap the body text on page 1.
 %\contributed{All authors contributed to the design, implementation, validation and writing of the manuscript.}
 %\dedicated{Dedicated to reproducible SDN research and applied network security education.}
@@ -198,15 +199,13 @@ The main contributions of this work are:
         isolates the contribution of the SDN telemetry.
 \end{enumerate}
 
- \section{Research design}\label{sec:research}
+\section{Materials and methods}\label{sec:methods}
 
-\subsection{Problem, objective and working hypothesis}
+\subsection{Problem, objective and working hypothesis}\label{sec:research}
 High accuracy on one attack type and separated captures does not show that a detector can recognize malicious traffic while legitimate users continue using the same service. Live internet browsing also changes between runs. The objective is therefore to implement and evaluate a reproducible Docker testbed that mixes benign traffic and four attacks against one portal, measures service impact, and tests a model on a laboratory excluded from training. The working hypothesis is that flow size, duration and rate features, without IP addresses, ports or time, can yield a macro F1 above 0.90 on that held-out laboratory. This hypothesis is first tested at home; validation with authorized real UNCP traffic is the proposed next phase.
 %\pagebreak
 
-\section{Software description}\label{sec:description}
-
-  \subsection{Architecture overview}
+  \subsection{Architecture overview}\label{sec:description}
   The topology is a reduced campus: an edge modem, a core switch, a DMZ holding the portal, and one laboratory per academic area. Each laboratory has students and compromised hosts (Fig.~\ref{fig:topologia}). Switches are Open vSwitch in userspace, controlled by Ryu. Students keep requesting portal pages during an attack. The operator's browser, at \texttt{http://127.0.0.1:8080/}, joins as one more benign client (\texttt{10.9.0.1}). The attack does not leave the container.
 
     \begin{figure*}[t]
@@ -243,7 +242,36 @@ High accuracy on one attack type and separated captures does not show that a det
 
     Before training, source IP, destination IP, both ports and the timestamp are dropped. An infinity or a missing value becomes zero, and any column that does not vary in the training set is removed. If the IP stayed, the forest would memorize which machine is compromised rather than how the flow behaves. The model is a forest of 200 trees with class weights, because the SYN flood contributes 23{,}539 flows and would otherwise dominate. The split is not random: Health, Engineerings, Empresariales and Sociales train it (32{,}784 flows) and only Agrarias is tested (8{,}091).
 
-\section{Results and impact overview}\label{sec:impact}
+  \subsection{Software and hardware requirements}\label{sec:requirements}
+
+  The testbed runs in an Ubuntu 24.04 container. The versions in Table~\ref{tbl:testbed} were read inside the \texttt{ataque-sdn} image. The model was trained with Python 3.12.3, scikit-learn 1.9.1 and pandas 3.0.6. Ryu uses Python 3.9.25.
+
+  \begin{table}[t]
+    \footnotesize
+    \caption{Testbed setup requirements.}\label{tbl:testbed}
+
+    \begin{tabular}{@{}p{0.5cm}p{2.3cm}p{1.7cm}p{1.6cm}@{}}
+    \toprule
+    N.\textsuperscript{o} & Description & Tool & Version \\
+    \midrule
+    1 & Network emulator & Mininet & 2.3.0 \\
+    2 & Virtual switch & Open vSwitch & 3.3.9 \\
+    3 & SDN controller & Ryu & 4.34 \\
+    4 & SYN and ICMP flood & hping3 & 3.0.0-alpha-2 \\
+    5 & Low-rate attack & slowhttptest & 1.9.0 \\
+    6 & Packet capture & tcpdump & 4.99.4 \\
+    7 & pcap to CSV & CICFlowMeter & 0.5.0 \\
+    8 & Container OS & Ubuntu & 24.04 \\
+    \bottomrule
+    \end{tabular}
+  \end{table}
+
+A conventional desktop is enough to repeat the run: 8 cores and
+16~GB of RAM. Docker Desktop runs on Windows 11 or Ubuntu. The
+container is given 6 CPUs and 8~GB, and Ubuntu 24.04 runs inside it.
+Open vSwitch runs in userspace (\texttt{datapath netdev}).
+
+\section{Results}\label{sec:impact}
 The single-vector reference dataset cannot be repeated, because its benign traffic comes from the live internet \citep{kumar2026icmpfloodsdn}. This testbed can be repeated, mixes student and attack traffic in the same capture, and already yields a classifier. On Ciencias Agrarias, a laboratory excluded from training, macro F1 is \Fmacro. The probe states what the page feels, not only which label was assigned. With institutional authorization, the same pipeline admits real benign traffic (Wireshark) while keeping the attack inside the container. The probe from that run is in Table~\ref{tbl:sonda}: only Slowloris takes the portal down.
 
   \subsection{Dataset composition}
@@ -293,52 +321,46 @@ The single-vector reference dataset cannot be repeated, because its benign traff
     \label{fig:cpu}
   \end{figure}
 
-  \subsection{Discussion}
-  The home test supports the working hypothesis for four defensible classes: macro F1 exceeds 0.90 without IP addresses and transfers to a held-out laboratory. It does not demonstrate real-network deployment or online detection. The contrast between SYN and Slowloris also shows why flow classification should be paired with a service probe: more packets do not necessarily mean lower service availability.
+\section{Discussion}\label{sec:discussion}
+  The home test supports the working hypothesis for four defensible classes: macro F1 exceeds 0.90 without IP addresses and transfers to a held-out laboratory. It does not demonstrate real-network deployment or online detection. The following paragraphs place this result next to recent SDN DDoS studies. The figures are not directly comparable, because each study uses a different dataset, task and metric, but the comparison shows where this testbed agrees with and departs from current practice.
 
-  \subsection{Ongoing research projects using the software}
-  The testbed is used in the authors' undergraduate thesis at the Universidad Nacional del Centro del Per\'u. The Wireshark capture protocol for the network officer is documented in a separate document distributed with the software.
+  \textbf{Data source.} Studies that train on public datasets inherit their limits. Ataa et~al.\ \citep{ataa2024insdn} reach 99.02\% accuracy on InSDN with CNN-LSTM and Transformer models, but they merge four poorly represented attack types into one class to raise accuracy. Fotse et~al.\ \citep{fotse2025fedlad} report more than 98\% accuracy with federated learning across several controllers, evaluated partly on CICDDoS2019 and CICDoS2017, which were not captured inside SDN. This work faces the same imbalance with ICMP (120 flows) but keeps it as a separate class and declines to claim it, rather than merging it to improve the aggregate figure.
+
+  \textbf{SDN testbeds.} The closest study is Mahar et~al.\ \citep{mahar2026hybrid}, who also build their dataset on Ryu and Open vSwitch, extract OpenFlow flow and port statistics, and reach 99.36\% accuracy with a random-forest and XGBoost hybrid. Their task is binary. Here the classifier must separate four attack types from benign traffic that shares the same capture and victim, and it is tested on a laboratory it never saw during training, which explains a lower but more demanding figure. Kumar and Gupta \citep{kumar2025synflood,kumar2026icmpfloodsdn} also generate SDN data in Mininet/Ryu, but with a single attack vector per dataset and live-internet benign traffic that cannot be reproduced.
+
+  \textbf{Low-rate attacks.} Slowloris is the attack that takes the portal down while producing the lowest packet rate (Table~\ref{tbl:sonda}). Al-Shukaili et~al.\ \citep{alshukaili2025lddos} show how accuracy can overstate performance on this kind of attack: their best model reaches 99.77\% accuracy but 95.45\% F1, which is why this work reports macro F1 instead of accuracy. Ramirez-Martinez et~al.\ \citep{ramirez2025p4slowloris} detect Slowloris with ML and DL on P4 switches, closer to the data plane than a controller-side model; this is a natural direction for moving the per-window detector of this work out of offline evaluation.
+
+  Overall, flow classification alone is not enough: SYN produces the highest packet rate without affecting availability, while Slowloris takes the portal down with few packets. None of the studies above reports the service impact as perceived by a client, which is what the portal probe adds.
 
   \subsection{Limitations and future improvements}
   The table is still computed from emulated students. The hybrid dataset (Wireshark plus simulated attack) is ready in the code and is updated when the authorized pcaps arrive. The reported per-flow result comes from a single 120~s run; the \texttt{repeat} driver and the leave-one-run-out cross-validation now make the evaluation repeatable, and the multi-run figures (mean~$\pm$~standard deviation) are being regenerated. ICMP accounts for 120 flows in the whole set and 24 in the Agrarias test, so its perfect F1 is not reported as a settled class result. The per-window detector is designed for early detection and consumes the controller telemetry that a Ryu-side detector would use, but it still scores already-captured windows offline rather than running inside Ryu. Future work: report the multi-run cross-validated figures and the SDN ablation, repeat the test with the Wireshark background and a mixed four-vector scenario, add more ICMP samples, and move the trained per-window model into the controller for online detection.
 
-  \subsection{Conclusions}
-  The run already measured, taken at home inside Docker, is the base of the proposal. In that run the student and the attack share the capture, the model does not use IP addresses, and on Ciencias Agrarias the macro F1 is \Fmacro. Sender-based labels preserve benign traffic inside an attacked capture; a laboratory holdout is more demanding than a random row split; and availability, packet rate and classification describe different aspects of an incident. Only Slowloris takes the portal down. ICMP is not claimed. This base supports the request for authorized real benign traffic. The simulated attack does not leave the container.
+  \subsection{Ongoing research projects using the software}
+  The testbed is used in the authors' undergraduate thesis at the Universidad Nacional del Centro del Per\'u. The Wireshark capture protocol for the network officer is documented in a separate document distributed with the software.
+
+
 
   \subsection{List of scholarly publications enabled by this software}
   There is no other publication yet. This software is what makes the evaluation in this article possible.
 
-  \section{Software and hardware requirements}\label{sec:requirements}
 
-  The testbed runs in an Ubuntu 24.04 container. The versions in Table~\ref{tbl:testbed} were read inside the \texttt{ataque-sdn} image. The model was trained with Python 3.12.3, scikit-learn 1.9.1 and pandas 3.0.6. Ryu uses Python 3.9.25.
+\section{Conclusions}\label{sec:conclusions}
+  The run already measured, taken at home inside Docker, is the base of the proposal. In that run the student and the attack share the capture, the model does not use IP addresses, and on Ciencias Agrarias the macro F1 is \Fmacro. Sender-based labels preserve benign traffic inside an attacked capture; a laboratory holdout is more demanding than a random row split; and availability, packet rate and classification describe different aspects of an incident. Only Slowloris takes the portal down. ICMP is not claimed. This base supports the request for authorized real benign traffic. The simulated attack does not leave the container.
 
-  \begin{table}[t]
-    \footnotesize
-    \caption{Testbed setup requirements.}\label{tbl:testbed}
+\bmsubsection*{Author Contributions}
+All authors contributed to the design, implementation, validation and writing of the manuscript.
 
-    \begin{tabular}{@{}p{0.5cm}p{2.3cm}p{1.7cm}p{1.6cm}@{}}
-    \toprule
-    N.\textsuperscript{o} & Description & Tool & Version \\
-    \midrule
-    1 & Network emulator & Mininet & 2.3.0 \\
-    2 & Virtual switch & Open vSwitch & 3.3.9 \\
-    3 & SDN controller & Ryu & 4.34 \\
-    4 & SYN and ICMP flood & hping3 & 3.0.0-alpha-2 \\
-    5 & Low-rate attack & slowhttptest & 1.9.0 \\
-    6 & Packet capture & tcpdump & 4.99.4 \\
-    7 & pcap to CSV & CICFlowMeter & 0.5.0 \\
-    8 & Container OS & Ubuntu & 24.04 \\
-    \bottomrule
-    \end{tabular}
-  \end{table}
+\bmsubsection*{Acknowledgments}
+The authors thank the Universidad Nacional del Centro del Per\'u. This work is dedicated to reproducible SDN research and applied network security education.
 
-A conventional desktop is enough to repeat the run: 8 cores and
-16~GB of RAM. Docker Desktop runs on Windows 11 or Ubuntu. The
-container is given 6 CPUs and 8~GB, and Ubuntu 24.04 runs inside it.
-Open vSwitch runs in userspace (\texttt{datapath netdev}).
+\bmsubsection*{Funding}
+This research received no external funding.
 
-\section*{Acknowledgements}
-The authors thank the Universidad Nacional del Centro del Per\'u. All authors contributed to the design, implementation, validation and writing of the manuscript. Dedicated to reproducible SDN research and applied network security education.
+\bmsubsection*{Conflicts of Interest}
+The authors declare no conflicts of interest.
+
+\bmsubsection*{Data Availability Statement}
+The testbed source code, the Docker environment, the labelling pipeline and the per-window datasets (CSV files under \texttt{data/processed}) are openly available at \url{https://github.com/CrisMC2/sdn-ddos-multiclass-detection}. The per-flow CSV files and packet captures can be regenerated with \texttt{scripts/docker/run\_scenario.sh}.
 
 \bibliography{references.bib}
 
