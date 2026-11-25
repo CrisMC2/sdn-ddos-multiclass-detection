@@ -196,10 +196,12 @@ The question is whether flow statistics—without IP addresses, ports, or timest
 
   The entire experiment is launched with a single command on the Docker image \texttt{ataque-sdn}. Inside the container, the Ryu controller, Open vSwitch, and the Mininet topology are started in that order; then the requested scenario is executed, and the outputs are collected. The complete flow goes from the emulated campus to the two labeled datasets (by flow and by time window) and to their detectors (Fig.~\ref{fig:methodology}).
 
-    \begin{center}
-        \includegraphics[width=\columnwidth]{methodology.png}
-        \captionof{figure} {Experimental pipeline from the emulated campus to the model. The label comes from the sender, not the capture file.}\label{fig:methodology}
-    \end{center}
+    \begin{figure*}[t]
+      \centering
+      \includegraphics[width=\textwidth]{methodology.png} \caption{Experimental pipeline from the emulated campus to the model. The label comes from the sender, not the capture file.}
+      
+      \label{fig:methodology}
+    \end{figure*}
 
   \subsection{Topology and Population}
 
@@ -378,67 +380,6 @@ The benchmark is fully reproducible: it is repeated using controlled seeds, mixi
   The average CPU usage of the container was 40\% in the baseline, 36\% in SYN, 71\% in HTTP, 313\% in Slowloris, and 35\% in ICMP; in Docker, 100\% is roughly equivalent to one core. Slowloris occupied about three of the six assigned cores, while the maximum observed memory usage remained around 230~MiB (during the HTTP flood). These values measure the entire bank (Mininet, OVS, Ryu, portal, and generators), not just
   the victim.
 
-  \subsection{Discussion}
-  The test supports the hypothesis for all five classes: the model achieves a macro F1 score above 0.90 without IP and generalizes to a held-out lab. For the window-based detector, we avoid the naive interpretation of an F1 close to 1: by adding stealthy, low-intensity attack profiles—in pulses and ramps—the honest macro F1 drops to 0{,}918~$\pm$~0{,}149 (\emph{leave-one-run-out} over 20 runs). The gap between training and testing has a median per run of $-0{,}011$—the model does not memorize—and only spikes in the few runs with the stealthy profile, where the attack is nearly indistinguishable from normal traffic. The most demanding test—leaving an entire profile out of training—yields a mean macro F1 score of 0{,}742 with absolute features and 0{,}764 with relative features compared to each run’s baseline; these figures—not a value close to 1—are the defensible results. When faced with four never-before-seen attacks (\texttt{ackflood}, \texttt{udpflood}, \texttt{slowpost}, and \texttt{multivector}), the detector triggers an alarm in 97\% of the attack windows using relative features. The most informative result remains the ablation: the fact that OpenFlow telemetry contributes $+$0{,}092 to the macro F1 score and is decisive in distinguishing ICMP from SYN is concrete evidence that SDN-specific signals have discriminative value that non-SDN datasets do not offer. The difference between SYN and Slowloris also demonstrates why it is beneficial to combine flow classification with a service probe: more packets do not necessarily mean a less available page.
-
-  \subsection{Limitations and future improvements}
-  The table is still computed from emulated students. The hybrid dataset (Wireshark plus simulated attack) is ready in the code and is updated when the authorized pcaps arrive. The reported per-flow result comes from a single 120~s run; the \texttt{repeat} driver and the leave-one-run-out cross-validation now make the evaluation repeatable, and the multi-run figures (mean~$\pm$~standard deviation) are being regenerated. ICMP accounts for 120 flows in the whole set and 24 in the Agrarias test, so its perfect F1 is not reported as a settled class result. The per-window detector is designed for early detection and consumes the controller telemetry that a Ryu-side detector would use, but it still scores already-captured windows offline rather than running inside Ryu. Future work: report the multi-run cross-validated figures and the SDN ablation, repeat the test with the Wireshark background and a mixed four-vector scenario, add more ICMP samples, and move the trained per-window model into the controller for online detection.
-
-  \section{Conclusions}
-  Campus-DDoS-SDN is a reproducible, single-command testbed that does not rely on live internet connectivity and generates a multi-class DDoS dataset in which benign traffic and four attack vectors coexist in the same capture against a single portal. Source-based labeling preserves benign traffic within the attacked capture, and laboratory-based partitioning provides a more demanding test than a random split. On completed flows, a random forest trained without IPs, ports, or timestamps achieves a macro F1 score of \Fmacro in the retained Agricultural Sciences laboratory; on the window-based dataset, it enables early detection with a macro F1 score of 0{,}918 across 20 runs covering five intensity profiles (and up to 0{,}764 when leaving an entire profile out of training), where OpenFlow telemetry contributes $+$0{,}092 and proves decisive in separating ICMP from SYN. This confirms the central contribution of the study: SDN-specific signals, absent from reused non-SDN datasets, have measurable discriminatory value.
-
-  Availability, packet rate, and classification describe different aspects of the incident: only Slowloris takes the portal offline despite its low packet rate. The result, using emulated students, serves as the basis for requesting authorization to incorporate real benign traffic from UNCP, without removing the attack from the container.
-
-\section{Results}\label{sec:impact}
-The single-vector reference dataset cannot be repeated, because its benign traffic comes from the live internet \citep{kumar2026icmpfloodsdn}. This testbed can be repeated, mixes student and attack traffic in the same capture, and already yields a classifier. On Ciencias Agrarias, a laboratory excluded from training, macro F1 is \Fmacro. The probe states what the page feels, not only which label was assigned. With institutional authorization, the same pipeline admits real benign traffic (Wireshark) while keeping the attack inside the container. The probe from that run is in Table~\ref{tbl:sonda}: only Slowloris takes the portal down.
-
-  \subsection{Dataset composition}
-  The five CSVs contain 40{,}877 flows: 9{,}400 \texttt{BENIGN},
-  23{,}539 \texttt{synflood}, 7{,}188 \texttt{httpflood}, 630
-  \texttt{slowloris} and 120 \texttt{icmpflood}. This distribution
-  motivates class weighting and the decision not to claim ICMP as a
-  settled class. Fig.~\ref{fig:flows} also shows that attack captures
-  retain benign student flows.
-
-  \begin{figure}[!htbp]
-  \centering
-  \includegraphics[width=\columnwidth]{images/paquetes_escenario.png}
-
-  \caption{Benign and attack flows obtained in every scenario.}
-  \label{fig:flows}
-  \end{figure}
-
-  \subsection{Portal impact}
-  \input{tabla_sonda_en.tex}
-
-
-  SYN produces the highest rate, 466 packets/s, yet the probe keeps 120 HTTP 200 responses. HTTP flood raises mean latency from 407 to 564~ms. Slowloris produces only 86 packets/s but occupies available connections and fails 117 of 118 probes. Packet rate alone therefore does not describe application impact.
-
-  \subsection{Classifier performance}
-  \input{tabla_resultados_en.tex}
-
-  Per-class results are in Table~\ref{tbl:deteccion}. Macro F1 on Agrarias is \Fmacro\ and binary benign-versus-attack F1 is 0.970. The most important features (Fig.~\ref{fig:importance}) are forward average segment size, forward packet-length mean and maximum, forward bytes and packet-size variability. This is consistent with the scenarios: SYN repeatedly sends small segments, HTTP exchanges complete requests and responses, and Slowloris holds connections with little traffic.
-
-  \begin{figure}[!htbp]
-    \centering
-    \includegraphics[width=\columnwidth]{images/features_importantes.png}
-
-    \caption{Eight most important random-forest features.}
-    \label{fig:importance}
-  \end{figure}
-
-
-  \subsection{Testbed consumption}
-  Mean container CPU was 23\% for baseline, 26\% for SYN, 50\% for HTTP, 523\% for Slowloris and 26\% for ICMP; in Docker, 100\% corresponds approximately to one core. Slowloris occupied about five of the six assigned cores (Fig.~\ref{fig:cpu}), while observed peak memory remained below 200~MiB. These values cover the whole testbed, not only the victim.
-
-  \begin{figure}[!htbp]
-    \centering
-    \includegraphics[width=\columnwidth]{images/ventanas_por_clase.png}
-
-    \caption{Mean container CPU by scenario.}
-    \label{fig:cpu}
-  \end{figure}
-
 \section{Discussion}\label{sec:discussion}
   The home test supports the working hypothesis for four defensible classes: macro F1 exceeds 0.90 without IP addresses and transfers to a held-out laboratory. It does not demonstrate real-network deployment or online detection. The following paragraphs place this result next to recent SDN DDoS studies. The figures are not directly comparable, because each study uses a different dataset, task and metric, but the comparison shows where this testbed agrees with and departs from current practice.
 
@@ -453,17 +394,10 @@ The single-vector reference dataset cannot be repeated, because its benign traff
   \subsection{Limitations and future improvements}
   The table is still computed from emulated students. The hybrid dataset (Wireshark plus simulated attack) is ready in the code and is updated when the authorized pcaps arrive. The reported per-flow result comes from a single 120~s run; the \texttt{repeat} driver and the leave-one-run-out cross-validation now make the evaluation repeatable, and the multi-run figures (mean~$\pm$~standard deviation) are being regenerated. ICMP accounts for 120 flows in the whole set and 24 in the Agrarias test, so its perfect F1 is not reported as a settled class result. The per-window detector is designed for early detection and consumes the controller telemetry that a Ryu-side detector would use, but it still scores already-captured windows offline rather than running inside Ryu. Future work: report the multi-run cross-validated figures and the SDN ablation, repeat the test with the Wireshark background and a mixed four-vector scenario, add more ICMP samples, and move the trained per-window model into the controller for online detection.
 
-  \subsection{Ongoing research projects using the software}
-  The testbed is used in the authors' undergraduate thesis at the Universidad Nacional del Centro del Per\'u. The Wireshark capture protocol for the network officer is documented in a separate document distributed with the software.
+  \section{Conclusions}
+  Campus-DDoS-SDN is a reproducible, single-command testbed that does not rely on live internet connectivity and generates a multi-class DDoS dataset in which benign traffic and four attack vectors coexist in the same capture against a single portal. Source-based labeling preserves benign traffic within the attacked capture, and laboratory-based partitioning provides a more demanding test than a random split. On completed flows, a random forest trained without IPs, ports, or timestamps achieves a macro F1 score of \Fmacro in the retained Agricultural Sciences laboratory; on the window-based dataset, it enables early detection with a macro F1 score of 0{,}918 across 20 runs covering five intensity profiles (and up to 0{,}764 when leaving an entire profile out of training), where OpenFlow telemetry contributes $+$0{,}092 and proves decisive in separating ICMP from SYN. This confirms the central contribution of the study: SDN-specific signals, absent from reused non-SDN datasets, have measurable discriminatory value.
 
-
-
-  \subsection{List of scholarly publications enabled by this software}
-  There is no other publication yet. This software is what makes the evaluation in this article possible.
-
-
-\section{Conclusions}\label{sec:conclusions}
-  The run already measured, taken at home inside Docker, is the base of the proposal. In that run the student and the attack share the capture, the model does not use IP addresses, and on Ciencias Agrarias the macro F1 is \Fmacro. Sender-based labels preserve benign traffic inside an attacked capture; a laboratory holdout is more demanding than a random row split; and availability, packet rate and classification describe different aspects of an incident. Only Slowloris takes the portal down. ICMP is not claimed. This base supports the request for authorized real benign traffic. The simulated attack does not leave the container.
+  Availability, packet rate, and classification describe different aspects of the incident: only Slowloris takes the portal offline despite its low packet rate. The result, using emulated students, serves as the basis for requesting authorization to incorporate real benign traffic from UNCP, without removing the attack from the container.
 
 \bmsubsection*{Author Contributions}
 All authors contributed to the design, implementation, validation and writing of the manuscript.
